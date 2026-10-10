@@ -1,0 +1,21 @@
+// access: read
+// What it does: Fetches repository metadata (description, default branch, stars, forks).
+// When to use it: Quick inspection of repository settings and public status.
+// How to run: lmscript examples/repo-overview.lms <owner> <repo>
+// How to preview: lmscript --dry-run examples/repo-overview.lms <owner> <repo>
+import "@lmctl-ai/lmgh";
+
+owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
+repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
+r = gh2.get_repository({ owner: owner, repo: repo });
+
+if (r.status == "simulated") {
+  println("would run: gh2.get_repository");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to get repository"));
+  exit(1);
+} else {
+  rep = r.result;
+  println(f"Repository: {rep.nameWithOwner} (default branch: {rep.defaultBranchRef.name})");
+  println(f"Description: {rep.description}");
+}

@@ -1,20 +1,36 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { ALL_GH2_SCHEMAS } from '../src/schemas.js';
 
 const GH2_CLI = resolve(import.meta.dir, '../src/cli.ts');
-// Hermetic: a temp HOME/cwd and a PATH with only bun, so no real gh, config or working tree is touched.
+// Hermetic: a temp HOME/cwd and a PATH with bun and fake gh, so no real gh, config or working tree is touched.
 const SANDBOX = mkdtempSync(join(tmpdir(), 'gh2-schemas-'));
+const BIN_DIR = join(SANDBOX, 'bin');
+mkdirSync(BIN_DIR, { recursive: true });
+const FAKE_GH = join(BIN_DIR, 'gh');
+writeFileSync(
+  FAKE_GH,
+  `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "gh version 2.45.0"
+  exit 0
+fi
+echo '{"status":"ok"}'
+exit 0
+`,
+);
+chmodSync(FAKE_GH, 0o755);
+
 afterAll(() => rmSync(SANDBOX, { recursive: true, force: true }));
 
 function runGh2(args: string[]) {
   const res = spawnSync(process.execPath, [GH2_CLI, ...args], {
     encoding: 'utf-8',
     cwd: SANDBOX,
-    env: { PATH: dirname(process.execPath), HOME: SANDBOX, NO_COLOR: '1' },
+    env: { PATH: `${BIN_DIR}:${dirname(process.execPath)}`, HOME: SANDBOX, NO_COLOR: '1' },
   });
   return {
     status: res.status ?? 0,

@@ -1,0 +1,27 @@
+// access: write
+// What it does: Creates a new issue in a GitHub repository with title and body.
+// When to use it: Automate bug reporting or filing tracking tickets from CI or scripts.
+// How to run: lmscript examples/create-issue.lms <owner> <repo> <title> [body]
+// How to preview: lmscript --dry-run examples/create-issue.lms <owner> <repo> <title> [body]
+import "@lmctl-ai/lmgh";
+
+if (len(ARGV) < 3) {
+  println("Error: required arguments: <owner> <repo> <title> [body]");
+  exit(1);
+}
+
+owner = ARGV[0];
+repo = ARGV[1];
+title = ARGV[2];
+body = len(ARGV) > 3 ? ARGV[3] : "Automated issue report";
+
+r = gh2.create_issue({ owner: owner, repo: repo, title: title, body: body });
+
+if (r.status == "simulated") {
+  println("would run: gh2.create_issue");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to create issue"));
+  exit(1);
+} else {
+  println(f"Created issue #{r.result.number}: {r.result.url}");
+}

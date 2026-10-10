@@ -111,16 +111,16 @@ describe('end to end: error mapping', () => {
     expect(r.json).toBe('[{"tagName":');
   });
 
-  test('gh missing from PATH -> COMMAND_FAILED, exit 1', () => {
+  test('gh missing from PATH -> UNSUPPORTED_PRODUCT_VERSION, exit 10', () => {
     const r = spawnSync(process.execPath, [CLI, 'get_me'], {
       cwd: fake.work,
       env: { PATH: fake.home, HOME: fake.home },
       encoding: 'utf-8',
     });
-    expect(r.status).toBe(1);
+    expect(r.status).toBe(10);
     const j = JSON.parse(r.stdout) as { error: { code: string; message: string } };
-    expect(j.error.code).toBe('COMMAND_FAILED');
-    expect(j.error.message).toContain('not found');
+    expect(j.error.code).toBe('UNSUPPORTED_PRODUCT_VERSION');
+    expect(j.error.message).toContain('not found on PATH');
   });
 });
 

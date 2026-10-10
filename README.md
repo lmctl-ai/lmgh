@@ -38,6 +38,50 @@ or `--input-file`) or a GraphQL document (`--input-graphql`). Output is JSON on
 stdout; errors are `{"success":false,"error":{"code","message","data"}}` with a
 non-zero exit code.
 
+## Use from lmscript
+
+> [!NOTE]
+> Available in lmscript >= the release that includes schema module import.
+
+lmscript can import this tool's schema directly:
+
+```ts
+import "@lmctl-ai/lmgh";
+
+const triage = await gh2.pr_triage({ url: "https://github.com/octo/hello/pull/42" });
+```
+
+Or with an alias:
+
+```ts
+import "@lmctl-ai/lmgh" as mygh;
+
+const issues = await mygh.list_issues({ owner: "octo", repo: "hello", state: "open" });
+```
+
+Or targeting the development channel:
+
+```ts
+import "@lmctl-ai/lmgh#dev";
+```
+
+### Channel files and release workflow
+
+The repository publishes two schema contracts at the root of its default branch:
+- `cli.schema.latest.json` — the contract of the latest stable release (default for `import "@lmctl-ai/lmgh"`).
+- `cli.schema.dev.json` — the active development contract (used by `import "@lmctl-ai/lmgh#dev"`).
+
+When releasing a new tool version, copy `cli.schema.dev.json` to `cli.schema.latest.json` in the release commit. Automated tests verify that `cli.schema.dev.json` is byte-for-byte identical to `bun src/cli.ts --schema`, and that all differences between `latest` and `dev` are strictly additive.
+
+### Product compatibility
+
+`gh2` declares and enforces product version requirements for the underlying `gh` binary:
+- Product name: `gh`
+- Supported versions: `>=2.45.0 <3.0.0`
+- Detection: `gh --version` (pattern `gh version (\d+\.\d+\.\d+)`)
+
+If the installed `gh` binary is missing or outside this range, operations are refused with error code `UNSUPPORTED_PRODUCT_VERSION` (exit code 10). Introspection flags (`--schema`, `--list`, `--help`) succeed regardless of the product check. The `gh2` binary must be installed and available on `PATH` at runtime; installing the CLI tool is separate.
+
 ## Safety flags
 
 Every write goes through the same policy before any command is built:

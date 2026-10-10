@@ -38,17 +38,28 @@ const fs = require('node:fs');
 const argv = process.argv.slice(2);
 const keys = ${JSON.stringify(RECORDED_ENV)};
 const rec = process.env.FAKE_GH_RECORD;
-if (rec) {
+const isVersionCheck = argv.includes('--version');
+if (rec && !isVersionCheck) {
   const env = {};
   for (const k of keys) env[k] = process.env[k] === undefined ? null : process.env[k];
   fs.appendFileSync(rec, JSON.stringify({ argv, cwd: process.cwd(), env }) + '\\n');
 }
 const rules = JSON.parse(process.env.FAKE_GH_RULES || '[]');
 const joined = argv.join(' ');
-const rule = rules.find((r) => r.match === undefined || joined.includes(r.match)) || {};
-if (rule.stdout) fs.writeSync(1, rule.stdout);
-if (rule.stderr) fs.writeSync(2, rule.stderr);
-process.exit(rule.exit === undefined ? 0 : rule.exit);
+const rule = rules.find((r) => r.match !== undefined && joined.includes(r.match));
+if (rule) {
+  if (rule.stdout) fs.writeSync(1, rule.stdout);
+  if (rule.stderr) fs.writeSync(2, rule.stderr);
+  process.exit(rule.exit === undefined ? 0 : rule.exit);
+}
+if (isVersionCheck) {
+  fs.writeSync(1, 'gh version 2.45.0 (2025-07-18 Ubuntu 2.45.0-1ubuntu0.3)\\nhttps://github.com/cli/cli/releases/tag/v2.45.0\\n');
+  process.exit(0);
+}
+const fallback = rules.find((r) => r.match === undefined) || {};
+if (fallback.stdout) fs.writeSync(1, fallback.stdout);
+if (fallback.stderr) fs.writeSync(2, fallback.stderr);
+process.exit(fallback.exit === undefined ? 0 : fallback.exit);
 `;
 
 export class FakeGh {

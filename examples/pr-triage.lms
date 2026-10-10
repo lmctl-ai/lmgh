@@ -1,0 +1,26 @@
+// access: read
+// What it does: Fetches a structured triage digest for a GitHub pull request URL.
+// When to use it: Assess PR diff stats, comments, and review readiness before deep review.
+// How to run: lmscript examples/pr-triage.lms <pr-url>
+// How to preview: lmscript --dry-run examples/pr-triage.lms <pr-url>
+import "@lmctl-ai/lmgh" as gh;
+
+if (len(ARGV) == 0) {
+  println("Error: PR URL required as first argument");
+  exit(1);
+}
+
+prUrl = ARGV[0];
+r = gh.pr_triage({ url: prUrl });
+
+if (r.status == "simulated") {
+  println("would run: gh2.pr_triage");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to triage PR"));
+  exit(1);
+} else {
+  st = r.result.status;
+  cs = r.result.checkSummary;
+  println(f"PR #{r.result.target.number}: {st.title} by @{st.author}");
+  println(f"State: {st.state} | Checks: {cs.passing}/{cs.total} passing ({cs.failing} failing)");
+}

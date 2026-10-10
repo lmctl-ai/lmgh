@@ -1,0 +1,21 @@
+// access: read
+// What it does: Lists open pull requests with PR number, title, author, and branch.
+// When to use it: Overview of currently active PRs in a repository.
+// How to run: lmscript examples/open-prs.lms <owner> <repo>
+// How to preview: lmscript --dry-run examples/open-prs.lms <owner> <repo>
+import "@lmctl-ai/lmgh";
+
+owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
+repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
+r = gh2.list_pull_requests({ owner: owner, repo: repo, state: "open" });
+
+if (r.status == "simulated") {
+  println("would run: gh2.list_pull_requests");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to list PRs"));
+  exit(1);
+} else {
+  for (pr in r.result) {
+    println(f"#{pr.number}: {pr.title} (by @{pr.author.login})");
+  }
+}

@@ -1,0 +1,21 @@
+// access: read
+// What it does: Lists open issues with issue number, title, and author.
+// When to use it: Review outstanding bugs or feature requests in a repository.
+// How to run: lmscript examples/issue-digest.lms <owner> <repo>
+// How to preview: lmscript --dry-run examples/issue-digest.lms <owner> <repo>
+import "@lmctl-ai/lmgh";
+
+owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
+repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
+r = gh2.list_issues({ owner: owner, repo: repo, state: "open" });
+
+if (r.status == "simulated") {
+  println("would run: gh2.list_issues");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to list issues"));
+  exit(1);
+} else {
+  for (issue in r.result) {
+    println(f"#{issue.number}: {issue.title} (by @{issue.author.login})");
+  }
+}

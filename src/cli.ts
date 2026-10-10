@@ -171,6 +171,14 @@ async function main(): Promise<number> {
         'Structured GitHub CLI wrapping the gh binary, with dry-run and read-only policy enforcement.',
       ops: makeOps(),
       buildContext: (policy: Policy): Gh2Ctx => ({ gh: new Gh2({ policy }) }),
+      product: {
+        name: 'gh',
+        supported: '>=2.45.0 <3.0.0',
+        detect: {
+          argv: ['gh', '--version'],
+          pattern: 'gh version (\\d+\\.\\d+\\.\\d+)',
+        },
+      },
     },
     process.argv.slice(2),
   );

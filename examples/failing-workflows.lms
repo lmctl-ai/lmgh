@@ -1,0 +1,21 @@
+// access: read
+// What it does: Lists recent failing GitHub Actions workflow runs.
+// When to use it: Identify broken CI builds and failing test pipelines in a repository.
+// How to run: lmscript examples/failing-workflows.lms <owner> <repo>
+// How to preview: lmscript --dry-run examples/failing-workflows.lms <owner> <repo>
+import "@lmctl-ai/lmgh";
+
+owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
+repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
+r = gh2.list_workflow_runs({ owner: owner, repo: repo, status: "failure" });
+
+if (r.status == "simulated") {
+  println("would run: gh2.list_workflow_runs");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to list workflow runs"));
+  exit(1);
+} else {
+  for (run in r.result) {
+    println(f"Run #{run.id}: {run.name} on branch {run.headBranch} ({run.conclusion})");
+  }
+}

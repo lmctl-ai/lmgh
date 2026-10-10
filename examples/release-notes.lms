@@ -1,0 +1,21 @@
+// access: read
+// What it does: Lists published releases and tags with release names and dates.
+// When to use it: Check version release history and published release tags.
+// How to run: lmscript examples/release-notes.lms <owner> <repo>
+// How to preview: lmscript --dry-run examples/release-notes.lms <owner> <repo>
+import "@lmctl-ai/lmgh";
+
+owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
+repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
+r = gh2.list_releases({ owner: owner, repo: repo });
+
+if (r.status == "simulated") {
+  println("would run: gh2.list_releases");
+} else if (r.status != "ok") {
+  println("Error:", get(r, "error.message", "failed to list releases"));
+  exit(1);
+} else {
+  for (rel in r.result) {
+    println(f"{rel.tagName}: {rel.name} (published {rel.publishedAt})");
+  }
+}
