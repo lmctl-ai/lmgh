@@ -1,21 +1,20 @@
-// access: read
-// What it does: Lists open issues with issue number, title, and author.
-// When to use it: Review outstanding bugs or feature requests in a repository.
-// How to run: lmscript examples/issue-digest.lms <owner> <repo>
-// How to preview: lmscript --dry-run examples/issue-digest.lms <owner> <repo>
-import "@lmctl-ai/lmgh";
+# Open issue digest grouped by label; unlabeled issues land under "none".
+# Run:    lmscript examples/issue-digest.lms <owner> <repo>
+out = ARGV.len() > 0 ? ARGV[0] : "build/issue-digest.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
 
-owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
-repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
-r = gh2.list_issues({ owner: owner, repo: repo, state: "open" });
-
-if (r.status == "simulated") {
-  println("would run: gh2.list_issues");
-} else if (r.status != "ok") {
-  println("Error:", get(r, "error.message", "failed to list issues"));
-  exit(1);
-} else {
-  for (issue in r.result) {
-    println(f"#{issue.number}: {issue.title} (by @{issue.author.login})");
-  }
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let issues = gh.issue_list(${owner}, ${repo}, "open", 50);
+for (i in range(0, issues.len())) {
+  let issue = issues.at(i);
+  let labels = issue.labels();
+  let label = "none";
+  if (labels.len() > 0) { label = labels.at(0); }
+  let line = "#" + str(issue.number()) + " " + issue.title() + " (@" + issue.author() + ")";
+  report.add("issue-" + label, ${owner} + "/" + ${repo}, line);
+  print(label + ": " + line);
 }
+report.write_json("build/issue-digest.json");
+end _lmcode_
+savedsl(p, out);

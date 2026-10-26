@@ -1,26 +1,20 @@
-// access: read
-// What it does: Fetches a structured triage digest for a GitHub pull request URL.
-// When to use it: Assess PR diff stats, comments, and review readiness before deep review.
-// How to run: lmscript examples/pr-triage.lms <pr-url>
-// How to preview: lmscript --dry-run examples/pr-triage.lms <pr-url>
-import "@lmctl-ai/lmgh" as gh;
+# Triage digest for one pull request: checks, reviews and mergeability.
+# Run:    lmscript examples/pr-triage.lms <owner> <repo> <number>
+out = ARGV.len() > 0 ? ARGV[0] : "build/pr-triage.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+number = ARGV.len() > 3 ? num(ARGV[3]) : 21;
 
-if (len(ARGV) == 0) {
-  println("Error: PR URL required as first argument");
-  exit(1);
-}
-
-prUrl = ARGV[0];
-r = gh.pr_triage({ url: prUrl });
-
-if (r.status == "simulated") {
-  println("would run: gh2.pr_triage");
-} else if (r.status != "ok") {
-  println("Error:", get(r, "error.message", "failed to triage PR"));
-  exit(1);
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let t = gh.pr_triage(${owner}, ${repo}, ${number});
+print("#" + str(t.number()) + ": " + t.title());
+print(t.summary());
+if (t.ok()) {
+  print("triage: OK to merge");
 } else {
-  st = r.result.status;
-  cs = r.result.checkSummary;
-  println(f"PR #{r.result.target.number}: {st.title} by @{st.author}");
-  println(f"State: {st.state} | Checks: {cs.passing}/{cs.total} passing ({cs.failing} failing)");
+  print("triage: NOT ready (checks failing " + str(t.checks_failing()) + ", changes requested " + str(t.changes_requested()) + ")");
+  report.add("pr-not-ready", ${owner} + "/" + ${repo} + "#" + str(t.number()), t.summary());
 }
+report.write_text("build/pr-triage.txt");
+end _lmcode_
+savedsl(p, out);

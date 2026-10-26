@@ -1,27 +1,21 @@
-// access: write
-// What it does: Creates a new issue in a GitHub repository with title and body.
-// When to use it: Automate bug reporting or filing tracking tickets from CI or scripts.
-// How to run: lmscript examples/create-issue.lms <owner> <repo> <title> [body]
-// How to preview: lmscript --dry-run examples/create-issue.lms <owner> <repo> <title> [body]
-import "@lmctl-ai/lmgh";
+# Creates an issue. Pass --dry (as the 4th outer argument) to record the
+# intent in the report without calling gh; otherwise the issue is created.
+# Run:    lmscript examples/create-issue.lms <owner> <repo> <title> [body]
+out = ARGV.len() > 0 ? ARGV[0] : "build/create-issue.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+title = ARGV.len() > 3 ? ARGV[3] : "Test issue from lmgh";
+body = ARGV.len() > 4 ? ARGV[4] : "Created by the lmgh create-issue example.";
+dry = ARGV.len() > 5 ? ARGV[5] == "--dry" : true;
 
-if (len(ARGV) < 3) {
-  println("Error: required arguments: <owner> <repo> <title> [body]");
-  exit(1);
-}
-
-owner = ARGV[0];
-repo = ARGV[1];
-title = ARGV[2];
-body = len(ARGV) > 3 ? ARGV[3] : "Automated issue report";
-
-r = gh2.create_issue({ owner: owner, repo: repo, title: title, body: body });
-
-if (r.status == "simulated") {
-  println("would run: gh2.create_issue");
-} else if (r.status != "ok") {
-  println("Error:", get(r, "error.message", "failed to create issue"));
-  exit(1);
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+gh.dry_run(${dry});
+let issue = gh.issue_create(${owner}, ${repo}, ${title}, ${body});
+if (gh.is_dry_run()) {
+  print("dry-run: would create issue in " + ${owner} + "/" + ${repo} + ": " + issue.title());
 } else {
-  println(f"Created issue #{r.result.number}: {r.result.url}");
+  print("created issue #" + str(issue.number()) + ": " + issue.url());
 }
+report.write_text("build/create-issue.txt");
+end _lmcode_
+savedsl(p, out);

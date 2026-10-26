@@ -1,29 +1,27 @@
-# LMScript Recipes for lmgh (`gh2`)
+# lmgh examples
 
-Practical automation recipes in [LMScript](https://github.com/lmctl-ai/lmctl) using the `@lmctl-ai/lmgh` schema module import (defaulting to the `latest` channel defined by `cli.schema.latest.json`).
+LMScript recipes compiled against the lmgh schema and run by the `lmgh`
+host. Each example defaults to `octo/demo` and can be pointed at any
+repository with arguments; runs use the ambient `gh` authentication.
 
-## Recipe Index
-
-| File | What it does | Access | Arguments |
+| File | What it does | gh access | Arguments |
 |---|---|---|---|
-| `pr-triage.lms` | Fetches a structured triage digest for a GitHub pull request URL | Read-only | `<pr-url>` |
-| `open-prs.lms` | Lists open pull requests with PR number, title, author, and branch | Read-only | `<owner> <repo>` |
-| `issue-digest.lms` | Lists open issues with issue number, title, and author | Read-only | `<owner> <repo>` |
-| `failing-workflows.lms` | Lists recent failing GitHub Actions workflow runs | Read-only | `<owner> <repo>` |
-| `release-notes.lms` | Lists published releases and tags with release names and dates | Read-only | `<owner> <repo>` |
-| `create-issue.lms` | Creates a new issue in a GitHub repository with title and body | Changes state | `<owner> <repo> <title> [body]` |
-| `repo-overview.lms` | Fetches repository metadata (description, default branch, stars, forks) | Read-only | `<owner> <repo>` |
+| [repo-overview.lms](repo-overview.lms) | Repository metadata: branch, license, stars, topics, last push | read | `<owner> <repo>` |
+| [open-prs.lms](open-prs.lms) | Lists open PRs with author and branch, drafts flagged | read | `<owner> <repo>` |
+| [issue-digest.lms](issue-digest.lms) | Groups open issues by first label into a JSON report | read | `<owner> <repo>` |
+| [pr-triage.lms](pr-triage.lms) | Checks/reviews/mergeability digest for one PR | read | `<owner> <repo> <number>` |
+| [failing-workflows.lms](failing-workflows.lms) | Failing workflow runs; exits 4 (`APP_FAIL`) when any exist | read | `<owner> <repo>` |
+| [release-notes.lms](release-notes.lms) | Recent releases with tag, name and date | read | `<owner> <repo>` |
+| [search-repos.lms](search-repos.lms) | Repository search with stars and descriptions | read | `<query>` |
+| [create-issue.lms](create-issue.lms) | Creates an issue; dry-run unless a 5th argument is given | write | `<owner> <repo> <title> [body] [--dry]` |
 
-## Running Recipes
+## Running
 
-Run any recipe with `lmscript`:
-
-```bash
-lmscript examples/open-prs.lms lmctl-ai lmgh
+```sh
+lmscript examples/open-prs.lms lmctl-ai lmgh   # compile to build/open-prs.dslb
+lmgh --dsl build/open-prs.dslb                 # run
 ```
 
-To preview without side effects or spawning tool processes:
-
-```bash
-lmscript --dry-run examples/create-issue.lms lmctl-ai lmgh "Bug report" "Steps to reproduce..."
-```
+`./test.sh` compiles every example, runs it against the canned `gh` double in
+[tests/fake-gh.py](../tests/fake-gh.py), and diffs stdout and report files
+against [tests/expected/](../tests/expected/).

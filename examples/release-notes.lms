@@ -1,21 +1,19 @@
-// access: read
-// What it does: Lists published releases and tags with release names and dates.
-// When to use it: Check version release history and published release tags.
-// How to run: lmscript examples/release-notes.lms <owner> <repo>
-// How to preview: lmscript --dry-run examples/release-notes.lms <owner> <repo>
-import "@lmctl-ai/lmgh";
+# Lists recent releases with tag, name and publish date.
+# Run:    lmscript examples/release-notes.lms <owner> <repo>
+out = ARGV.len() > 0 ? ARGV[0] : "build/release-notes.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
 
-owner = len(ARGV) > 0 ? ARGV[0] : "lmctl-ai";
-repo = len(ARGV) > 1 ? ARGV[1] : "lmgh";
-r = gh2.list_releases({ owner: owner, repo: repo });
-
-if (r.status == "simulated") {
-  println("would run: gh2.list_releases");
-} else if (r.status != "ok") {
-  println("Error:", get(r, "error.message", "failed to list releases"));
-  exit(1);
-} else {
-  for (rel in r.result) {
-    println(f"{rel.tagName}: {rel.name} (published {rel.publishedAt})");
-  }
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let releases = gh.release_list(${owner}, ${repo}, 10);
+for (i in range(0, releases.len())) {
+  let rel = releases.at(i);
+  let flags = "";
+  if (rel.is_draft()) { flags = flags + " [draft]"; }
+  if (rel.is_prerelease()) { flags = flags + " [prerelease]"; }
+  print(rel.tag() + ": " + rel.name() + " (" + rel.published_at() + ")" + flags);
+  report.add("release", rel.tag(), rel.name() + " " + rel.url());
 }
+report.write_text("build/release-notes.txt");
+end _lmcode_
+savedsl(p, out);

@@ -1,0 +1,15 @@
+# Searches repositories by query and prints full name, stars and description.
+# Run:    lmscript examples/search-repos.lms <query>
+out = ARGV.len() > 0 ? ARGV[0] : "build/search-repos.dslb";
+query = ARGV.len() > 1 ? ARGV[1] : "octo";
+
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let repos = gh.search_repos(${query}, 10);
+for (i in range(0, repos.len())) {
+  let r = repos.at(i);
+  print(r.full_name() + " [" + str(r.stars()) + " stars] " + r.description());
+  report.add("repo-hit", r.full_name(), str(r.stars()) + " stars, pushed " + r.pushed_at());
+}
+report.write_json("build/search-repos.json");
+end _lmcode_
+savedsl(p, out);

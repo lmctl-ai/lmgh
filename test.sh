@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# lmgh end-to-end checks: build, schema parity, examples against a fake gh,
+# and refusal tests. Mirrors lmhtml's test.sh structure.
+set -u
+cd "$(dirname "$0")"
+mkdir -p build
+
+PASS=0
+ok() { PASS=$((PASS + 1)); printf 'ok %d - %s\n' "$PASS" "$1"; }
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+# --- compiler ----------------------------------------------------------
+LMSCRIPT="${LMSCRIPT_BIN:-$(command -v lmscript || true)}"
+[ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl"
+ver=$("$LMSCRIPT" --version 2>/dev/null | awk '{print $2}')
+[ -n "$ver" ] || fail "cannot read lmscript version"
+python3 - "$ver" <<'PY' || fail "lmscript $ver < 0.2.420"
+import sys
+sys.exit(0 if tuple(int(p) for p in sys.argv[1].split(".")) >= (0, 2, 420) else 1)
+PY
+ok "compiler $LMSCRIPT ($ver)"
+
+# --- upstream cli/cli pin ----------------------------------------------
+scripts/sync-cli.sh --verify 2>/dev/null || scripts/sync-cli.sh || fail "cannot sync third_party/cli"
+ok "third_party/cli pinned by cli.lock"
+
+# --- build --------------------------------------------------------------
+CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh . || fail "go build"
+HOST=build/lmgh
+ok "go build (CGO disabled)"
+
+# fake gh on PATH for every run below
+mkdir -p build/fake-bin
+cat > build/fake-bin/gh <<EOF
+#!/bin/bash
+exec python3 "$PWD/tests/fake-gh.py" "\$@"
+EOF
+chmod +x build/fake-bin/gh
+export PATH="$PWD/build/fake-bin:$PWD/build:$PATH"
+
+# --- CLI protocol -------------------------------------------------------
+[ "$("$HOST" --version)" = "lmgh 0.1.0" ] || fail "--version"
+ok "--version"
+cmp -s <("$HOST" --dsl-schema) schema/lmgh.dsl.json || fail "--dsl-schema bytes differ from schema/lmgh.dsl.json"
+ok "--dsl-schema equals schema/lmgh.dsl.json"
+set +e; out=$("$HOST" 2>&1); code=$?; set -e
+[ "$code" = 2 ] && [[ "$out" == *'CLI_USAGE'* ]] || fail "bad args refusal (exit $code)"
+set +e
+out=$("$HOST" --schema 2>&1); code=$?
+set -e
+[ "$code" = 2 ] || fail "former --schema flag accepted"
+ok "usage errors exit 2 with CLI_USAGE JSON"
+
+# --- schema parity ------------------------------------------------------
+"$HOST" --dsl-signatures > build/host-signatures.txt
+"$LMSCRIPT" --dsl-signatures schema/lmgh.dsl.json > build/compiler-signatures.txt
+missing=$(python3 - <<'PY'
+host = set(open("build/host-signatures.txt").read().splitlines())
+print("\n".join(s for s in open("build/compiler-signatures.txt").read().splitlines() if s not in host))
+PY
+)
+[ -z "$missing" ] || fail "compiler signatures missing from host registry: $missing"
+ok "every compiler-visible signature binds in the host registry"
+python3 - <<'PY' || fail "host schema drifts from the registry"
+import json, subprocess
+schema = json.load(open("schema/lmgh.host.json"))
+sigs = set(subprocess.run(["build/lmgh", "--dsl-signatures"], capture_output=True, text=True).stdout.splitlines())
+want = [f"context {n}: {t}" for n, t in schema["context"].items()]
+for fn, overloads in schema.get("functions", {}).items():
+    for o in overloads:
+        want.append(f"fn {fn}({', '.join(o['params'])}) -> {o['returns']}")
+for t, decl in schema["types"].items():
+    for m, overloads in decl.get("methods", {}).items():
+        for o in overloads:
+            ret = t if o["returns"] == "self" else o["returns"]
+            want.append(f"method {t}.{m}({', '.join(o['params'])}) -> {ret}")
+missing = [s for s in want if s not in sigs]
+if missing:
+    print("\n".join(missing)); raise SystemExit(1)
+PY
+ok "every host schema signature is registered"
+
+# --- examples -----------------------------------------------------------
+run_example() { # name [expected-exit]
+  local name="$1" want="${2:-0}"
+  "$LMSCRIPT" "examples/$name.lms" "build/$name.dslb" >/dev/null || fail "$name compile"
+  od -An -t u1 -j 5 -N 1 "build/$name.dslb" | grep -q 5 || fail "$name is not bytecode v5"
+  set +e
+  "$HOST" --dsl "build/$name.dslb" > "build/$name.out" 2>&1
+  local code=$?
+  set -e
+  [ "$code" = "$want" ] || fail "$name exit $code (want $want): $(cat build/$name.out)"
+  cmp -s "build/$name.out" "tests/expected/$name.out" || fail "$name stdout drift: $(diff tests/expected/$name.out build/$name.out | head -5)"
+  ok "$name (exit $want)"
+}
+
+run_example repo-overview
+run_example open-prs
+run_example issue-digest
+run_example pr-triage
+run_example failing-workflows 4
+run_example release-notes
+run_example search-repos
+run_example create-issue
+cmp -s build/repo-overview.txt tests/expected/repo-overview.txt || fail "repo-overview.txt drift"
+cmp -s build/open-prs.txt tests/expected/open-prs.txt || fail "open-prs.txt drift"
+cmp -s build/pr-triage.txt tests/expected/pr-triage.txt || fail "pr-triage.txt drift"
+cmp -s build/release-notes.txt tests/expected/release-notes.txt || fail "release-notes.txt drift"
+cmp -s build/create-issue.txt tests/expected/create-issue.txt || fail "create-issue.txt drift"
+cmp -s build/issue-digest.json tests/expected/issue-digest.json || fail "issue-digest.json drift"
+cmp -s build/search-repos.json tests/expected/search-repos.json || fail "search-repos.json drift"
+ok "example report files match"
+
+# --- behavioral chunks ---------------------------------------------------
+WORK=build/test-chunks
+rm -rf "$WORK"; mkdir -p "$WORK"
+compile_chunk() { # name body
+  cat > "$WORK/$1.lms" <<EOF2
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+$2
+end _lmcode_
+savedsl(p, "$WORK/$1.dslb");
+EOF2
+  "$LMSCRIPT" "$WORK/$1.lms" >/dev/null || fail "$1 compile"
+}
+
+expect_run() { # name want-exit needle
+  set +e
+  out=$("$HOST" --dsl "$WORK/$1.dslb" 2>&1); code=$?
+  set -e
+  [ "$code" = "$2" ] || fail "$1 exit $code (want $2): $out"
+  [[ "$out" == *"$3"* ]] || fail "$1 output lacks '$3': $out"
+  ok "$1"
+}
+
+expect_refusal() { # name body needle
+  compile_chunk "$1" "$2"
+  expect_run "$1" 3 "$3"
+}
+
+expect_refusal bad-state 'gh.issue_list("octo", "demo", "widely-open", 10);' 'invalid state'
+expect_refusal bad-limit 'gh.issue_list("octo", "demo", "open", 10000);' 'invalid limit'
+expect_refusal bad-merge-kind 'gh.pr_merge("octo", "demo", 21, "nuke");' 'invalid merge method'
+expect_refusal list-oob 'let l = gh.issue_list("octo", "demo", "open", 10); l.at(99);' 'out of range'
+expect_refusal bad-repo 'gh.issue_list("octo", "missing", "open", 10);' 'failed'
+
+# gh binary missing: LMGH_GH points nowhere (robust even when gh is installed)
+compile_chunk needs-gh 'gh.issue_list("octo", "demo", "open", 10);'
+set +e
+out=$(LMGH_GH="$WORK/no-such-gh" "$HOST" --dsl "$WORK/needs-gh.dslb" 2>&1); code=$?
+set -e
+[ "$code" = 3 ] && [[ "$out" == *'missing gh executable'* ]] || fail "missing gh refusal (exit $code): $out"
+ok "missing gh binary refused"
+
+# write ops
+compile_chunk issue-create-live 'let i = gh.issue_create("octo", "demo", "Live title", "body"); print("#" + str(i.number()) + " " + i.state());'
+expect_run issue-create-live 0 '#42 OPEN'
+
+compile_chunk issue-create-dry 'gh.dry_run(true); let i = gh.issue_create("octo", "demo", "Dry title", ""); print(i.state()); report.write_text("build/test-chunks/dry-report.txt");'
+expect_run issue-create-dry 0 'dry-run'
+grep -q 'dry-run: issue_create: octo/demo: Dry title' "$WORK/dry-report.txt" || fail "dry-run report entry"
+ok "dry-run write recorded in report"
+
+compile_chunk merge-dry 'gh.dry_run(true); print(gh.pr_merge("octo", "demo", 21, "squash"));'
+expect_run merge-dry 0 'dry-run: gh pr merge 21 -R octo/demo --squash'
+
+compile_chunk app-fail 'report.add("test", "subject", "intentional"); report.fail_if_any();'
+expect_run app-fail 4 'APP_FAIL'
+
+# load failures
+printf 'not bytecode' > "$WORK/junk.dslb"
+set +e
+out=$("$HOST" --dsl "$WORK/junk.dslb" 2>&1); code=$?
+set -e
+[ "$code" = 3 ] && [[ "$out" == *'LOAD_BAD_BYTECODE'* ]] || fail "junk bytecode (exit $code): $out"
+ok "bad bytecode refused at load"
+
+set +e
+out=$("$HOST" --dsl "$WORK/absent.dslb" 2>&1); code=$?
+set -e
+[ "$code" = 4 ] && [[ "$out" == *'APP_FAIL'* ]] || fail "missing bytecode file (exit $code): $out"
+ok "missing bytecode file exits 4"
+
+echo "PASS: $PASS checks"

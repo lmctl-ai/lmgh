@@ -1,0 +1,205 @@
+{
+  "dsl.schema": 2,
+  "name": "lmgh",
+  "types": {
+    "Gh": {
+      "methods": {
+        "dry_run": [
+          { "params": ["bool"], "returns": "self" }
+        ],
+        "is_dry_run": [
+          { "params": [], "returns": "bool" }
+        ],
+        "repo_view": [
+          { "params": ["string", "string"], "returns": "Repo" }
+        ],
+        "issue_list": [
+          { "params": ["string", "string", "string", "int"], "returns": "IssueList" }
+        ],
+        "issue_view": [
+          { "params": ["string", "string", "int"], "returns": "Issue" }
+        ],
+        "issue_create": [
+          { "params": ["string", "string", "string", "string"], "returns": "Issue" }
+        ],
+        "pr_list": [
+          { "params": ["string", "string", "string", "int"], "returns": "PrList" }
+        ],
+        "pr_view": [
+          { "params": ["string", "string", "int"], "returns": "Pr" }
+        ],
+        "pr_triage": [
+          { "params": ["string", "string", "int"], "returns": "Triage" }
+        ],
+        "pr_merge": [
+          { "params": ["string", "string", "int", "string"], "returns": "string" }
+        ],
+        "release_list": [
+          { "params": ["string", "string", "int"], "returns": "ReleaseList" }
+        ],
+        "run_list": [
+          { "params": ["string", "string", "int"], "returns": "RunList" }
+        ],
+        "search_repos": [
+          { "params": ["string", "int"], "returns": "RepoList" }
+        ],
+        "search_issues": [
+          { "params": ["string", "int"], "returns": "IssueList" }
+        ],
+        "search_prs": [
+          { "params": ["string", "int"], "returns": "PrList" }
+        ],
+        "file_text": [
+          { "params": ["string", "string", "string"], "returns": "string" }
+        ]
+      }
+    },
+    "Repo": {
+      "methods": {
+        "name": [ { "params": [], "returns": "string" } ],
+        "full_name": [ { "params": [], "returns": "string" } ],
+        "description": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "default_branch": [ { "params": [], "returns": "string" } ],
+        "license": [ { "params": [], "returns": "string" } ],
+        "homepage": [ { "params": [], "returns": "string" } ],
+        "pushed_at": [ { "params": [], "returns": "string" } ],
+        "stars": [ { "params": [], "returns": "int" } ],
+        "forks": [ { "params": [], "returns": "int" } ],
+        "open_issues": [ { "params": [], "returns": "int" } ],
+        "is_archived": [ { "params": [], "returns": "bool" } ],
+        "is_private": [ { "params": [], "returns": "bool" } ],
+        "topics": [ { "params": [], "returns": "Strings" } ]
+      }
+    },
+    "RepoList": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "Repo" } ]
+      }
+    },
+    "Strings": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "string" } ]
+      }
+    },
+    "Issue": {
+      "methods": {
+        "number": [ { "params": [], "returns": "int" } ],
+        "title": [ { "params": [], "returns": "string" } ],
+        "state": [ { "params": [], "returns": "string" } ],
+        "author": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "repo": [ { "params": [], "returns": "string" } ],
+        "created_at": [ { "params": [], "returns": "string" } ],
+        "body": [ { "params": [], "returns": "string" } ],
+        "comments": [ { "params": [], "returns": "int" } ],
+        "labels": [ { "params": [], "returns": "Strings" } ]
+      }
+    },
+    "IssueList": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "Issue" } ]
+      }
+    },
+    "Pr": {
+      "methods": {
+        "number": [ { "params": [], "returns": "int" } ],
+        "title": [ { "params": [], "returns": "string" } ],
+        "state": [ { "params": [], "returns": "string" } ],
+        "author": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "base": [ { "params": [], "returns": "string" } ],
+        "head": [ { "params": [], "returns": "string" } ],
+        "created_at": [ { "params": [], "returns": "string" } ],
+        "updated_at": [ { "params": [], "returns": "string" } ],
+        "mergeable": [ { "params": [], "returns": "string" } ],
+        "is_draft": [ { "params": [], "returns": "bool" } ],
+        "labels": [ { "params": [], "returns": "Strings" } ]
+      }
+    },
+    "PrList": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "Pr" } ]
+      }
+    },
+    "Triage": {
+      "methods": {
+        "number": [ { "params": [], "returns": "int" } ],
+        "title": [ { "params": [], "returns": "string" } ],
+        "state": [ { "params": [], "returns": "string" } ],
+        "author": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "mergeable": [ { "params": [], "returns": "string" } ],
+        "summary": [ { "params": [], "returns": "string" } ],
+        "checks_total": [ { "params": [], "returns": "int" } ],
+        "checks_passed": [ { "params": [], "returns": "int" } ],
+        "checks_failing": [ { "params": [], "returns": "int" } ],
+        "approved": [ { "params": [], "returns": "int" } ],
+        "changes_requested": [ { "params": [], "returns": "int" } ],
+        "review_decision": [ { "params": [], "returns": "string" } ],
+        "ok": [ { "params": [], "returns": "bool" } ]
+      }
+    },
+    "Release": {
+      "methods": {
+        "tag": [ { "params": [], "returns": "string" } ],
+        "name": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "published_at": [ { "params": [], "returns": "string" } ],
+        "is_draft": [ { "params": [], "returns": "bool" } ],
+        "is_prerelease": [ { "params": [], "returns": "bool" } ]
+      }
+    },
+    "ReleaseList": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "Release" } ]
+      }
+    },
+    "Run": {
+      "methods": {
+        "name": [ { "params": [], "returns": "string" } ],
+        "display_title": [ { "params": [], "returns": "string" } ],
+        "status": [ { "params": [], "returns": "string" } ],
+        "conclusion": [ { "params": [], "returns": "string" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "branch": [ { "params": [], "returns": "string" } ],
+        "event": [ { "params": [], "returns": "string" } ],
+        "created_at": [ { "params": [], "returns": "string" } ],
+        "updated_at": [ { "params": [], "returns": "string" } ]
+      }
+    },
+    "RunList": {
+      "methods": {
+        "len": [ { "params": [], "returns": "int" } ],
+        "at": [ { "params": ["int"], "returns": "Run" } ],
+        "failing": [ { "params": [], "returns": "RunList" } ]
+      }
+    },
+    "Report": {
+      "methods": {
+        "add": [ { "params": ["string", "string", "string"], "returns": "void" } ],
+        "len": [ { "params": [], "returns": "int" } ],
+        "write_text": [ { "params": ["string"], "returns": "void" } ],
+        "write_json": [ { "params": ["string"], "returns": "void" } ],
+        "fail_if_any": [ { "params": [], "returns": "void" } ]
+      }
+    }
+  },
+  "functions": {
+    "print": [
+      { "params": ["string"], "returns": "void" }
+    ],
+    "assert_close": [
+      { "params": ["float", "float", "float"], "returns": "void" }
+    ]
+  },
+  "context": {
+    "gh": "Gh",
+    "report": "Report"
+  }
+}

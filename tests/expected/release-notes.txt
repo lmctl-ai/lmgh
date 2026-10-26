@@ -1,0 +1,2 @@
+release: v1.2.0: Version 1.2.0 https://github.com/octo/demo/releases/tag/v1.2.0
+release: v1.1.0: Version 1.1.0 https://github.com/octo/demo/releases/tag/v1.1.0
