@@ -13,17 +13,12 @@ upstream is vendored under `third_party/cli` and pinned by
 licensed like upstream (see [LICENSE](LICENSE) and
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)).
 
-## Install
+## Use it — no installation
 
-```sh
-go install github.com/lmctl-ai/lmgh@latest   # or: go build -o build/lmgh .
-```
-
-`lmgh` needs the `gh` binary on `PATH` (version >= 2.45.0, < 3.0.0). Auth is
-`gh`'s own (`gh auth login` or `GH_TOKEN`); set `LMGH_GH` to use a `gh` that is
-not on `PATH`.
-
-## Use from lmscript
+Users do **not** install lmgh and do **not** need Go. A `_lmcode_` block that
+names lmgh makes `lmscript` download the released host binary for your
+platform (SHA-256 verified, cached), compile against its embedded schema, and
+run it:
 
 ```lms
 out = ARGV.len() > 0 ? ARGV[0] : "build/open-prs.dslb";
@@ -38,9 +33,13 @@ savedsl(p, out);
 ```
 
 ```sh
-lmscript examples/open-prs.lms <owner> <repo>   # compile to .dslb
-lmgh --dsl build/open-prs.dslb                  # run (set GH_TOKEN as usual)
+lmscript open-prs.lms <owner> <repo>   # compiles AND fetches the lmgh host on first use
+lmgh --dsl build/open-prs.dslb         # or run it straight from the lmscript tool cache
 ```
+
+The only runtime requirement is the `gh` binary itself (version >= 2.45.0,
+< 3.0.0) with `gh`'s own authentication (`gh auth login` or `GH_TOKEN`). Set
+`LMGH_GH` to point at a `gh` that is not on `PATH`.
 
 The schema ([`schema/lmgh.dsl.json`](schema/lmgh.dsl.json)) is the contract:
 `lmgh --dsl-schema` prints the exact embedded bytes and
@@ -59,8 +58,12 @@ records intent in the report instead of calling `gh`.
 ## Develop
 
 ```sh
+go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
 ./test.sh                  # 30 checks: build, parity, examples vs a fake gh, refusals
 ```
 
+Releases: `scripts/release.sh <version>` builds the six
+`lmgh-{linux,macos,windows}-{x64,arm64}` assets plus `SHA256SUMS` and creates
+the GitHub release; the asset names are the lmscript `install=` convention.
 [durable-memory/](durable-memory/) records the design and decisions.

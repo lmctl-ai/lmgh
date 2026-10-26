@@ -17,10 +17,17 @@ repository with arguments; runs use the ambient `gh` authentication.
 
 ## Running
 
+Nothing to install: on first compile, `lmscript` downloads the released lmgh
+host for your platform (SHA-256 verified, cached under the lmscript tool
+cache) because each recipe names it on the `_lmcode_` line:
+
 ```sh
 lmscript examples/open-prs.lms lmctl-ai lmgh   # compile to build/open-prs.dslb
-lmgh --dsl build/open-prs.dslb                 # run
+lmgh --dsl build/open-prs.dslb                 # run (gh auth as usual)
 ```
+
+If `lmgh` is already on `PATH`, the download is skipped and that binary is
+used. Runtime requirement: `gh` >= 2.45.0 with its own auth.
 
 `./test.sh` compiles every example, runs it against the canned `gh` double in
 [tests/fake-gh.py](../tests/fake-gh.py), and diffs stdout and report files

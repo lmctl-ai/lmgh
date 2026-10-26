@@ -1,6 +1,23 @@
 # Build, run, test
 
-## Build
+## Install story (users)
+
+Users never install lmgh and never need Go. The `_lmcode_` block names the
+host (`cli="lmgh" install="github:lmctl-ai/lmgh@latest"`), so `lmscript`
+downloads the release asset `lmgh-OS-ARCH` (OS: linux/macos/windows; arch:
+x64/arm64; `.exe` on windows) into its tool cache
+(`LMSCRIPT_TOOL_CACHE` or `~/.cache/lmscript/tools`), verifies sha256 against
+`SHA256SUMS`, and compiles against the binary's embedded schema. A `lmgh`
+found on PATH skips the download. Verified 2026-10-26: fresh cache, no PATH
+binary, `lmscript examples/open-prs.lms` fetched the host and ran against the
+fake gh. The only user prerequisite is `gh` itself (>= 2.45.0 < 3.0.0) with
+`gh` auth; `LMGH_GH` overrides the gh path.
+
+Releases are cut with `scripts/release.sh <version>` (no `v` prefix): builds
+the six assets + SHA256SUMS and creates the GitHub release. The `version`
+constant in host.go must match the requested version.
+
+## Build (developers)
 
 ```sh
 CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh .
