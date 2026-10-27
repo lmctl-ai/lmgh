@@ -13,9 +13,12 @@ binary, `lmscript examples/open-prs.lms` fetched the host and ran against the
 fake gh. The only user prerequisite is `gh` itself (>= 2.45.0 < 3.0.0) with
 `gh` auth; `LMGH_GH` overrides the gh path.
 
-Releases are cut with `scripts/release.sh <version>` (no `v` prefix): builds
-the six assets + SHA256SUMS and creates the GitHub release. The `version`
-constant in host.go must match the requested version.
+Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`
+and, once tests pass, the release job cross-builds the six assets +
+SHA256SUMS, verifies the tag matches `lmgh --version`, and creates the GitHub
+release. `scripts/release.sh <version>` (no `v` prefix) remains as the local
+fallback: it builds the six assets + SHA256SUMS and creates the release; the
+`version` constant in host.go must match the requested version.
 
 ## Build (developers)
 
@@ -23,12 +26,13 @@ constant in host.go must match the requested version.
 CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh .
 ```
 
-Go 1.26; single dependency `github.com/lmctl-ai/lmcode-go` (pinned in
-`go.mod`/`go.sum`, same pseudo-version as lmcode-go-sample).
+Go 1.26; dependencies `github.com/lmctl-ai/lmcode-go` and
+`github.com/pelletier/go-toml/v2` (pinned in `go.mod`/`go.sum`; the SDK is the
+same pseudo-version as lmcode-go-sample).
 
 ## CLI protocol
 
-- `lmgh --version` → `lmgh 0.2.0`
+- `lmgh --version` → `lmgh 0.2.1`
 - `lmgh --dsl-schema [--json]` → the embedded schema bytes (byte-equal to
   `schema/lmgh.dsl.json`; the header hash of every `.dslb` is sha256 of
   these bytes)

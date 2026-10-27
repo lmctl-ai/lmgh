@@ -72,7 +72,9 @@ scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
 ./test.sh                  # 44 checks: build, parity, examples vs a fake gh, refusals
 ```
 
-Releases: `scripts/release.sh <version>` builds the six
-`lmgh-{linux,macos,windows}-{x64,arm64}` assets plus `SHA256SUMS` and creates
-the GitHub release; the asset names are the lmscript `install=` convention.
-[durable-memory/](durable-memory/) records the design and decisions.
+Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`
+and, once tests pass, cross-builds the six `lmgh-{linux,macos,windows}-{x64,arm64}`
+assets plus `SHA256SUMS` and creates the GitHub release (the asset names are
+the lmscript `install=` convention). `scripts/release.sh <version>` remains as
+the local fallback. [durable-memory/](durable-memory/) records the design and
+decisions.
