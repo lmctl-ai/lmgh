@@ -55,12 +55,21 @@ Reads: `repo_view`, `issue_list`, `issue_view`, `pr_list`, `pr_view`,
 Writes: `issue_create`, `pr_merge` — both honor `gh.dry_run(bool)`, which
 records intent in the report instead of calling `gh`.
 
+Human-in-the-loop PRs: `pr_prepare(owner, repo, title, body, base, head, draft)`
+writes `pr-review-<owner>-<repo>.toml` — a plain TOML file (via
+[pelletier/go-toml](https://github.com/pelletier/go-toml)) for the operator to
+review and edit; it refuses to overwrite an existing file. Once approved,
+`pr_submit(owner, repo, path)` decodes that exact file (unknown fields, an
+empty title, or a repository mismatch are refused) and runs `gh pr create`
+from it. Nothing reaches GitHub between prepare and submit; `pr_submit` also
+honors `gh.dry_run(bool)`. See [`examples/submit-pr.lms`](examples/submit-pr.lms).
+
 ## Develop
 
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 30 checks: build, parity, examples vs a fake gh, refusals
+./test.sh                  # 44 checks: build, parity, examples vs a fake gh, refusals
 ```
 
 Releases: `scripts/release.sh <version>` builds the six

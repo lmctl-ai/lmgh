@@ -14,6 +14,7 @@ repository with arguments; runs use the ambient `gh` authentication.
 | [release-notes.lms](release-notes.lms) | Recent releases with tag, name and date | read | `<owner> <repo>` |
 | [search-repos.lms](search-repos.lms) | Repository search with stars and descriptions | read | `<query>` |
 | [create-issue.lms](create-issue.lms) | Creates an issue; dry-run unless a 5th argument is given | write | `<owner> <repo> <title> [body] [--dry]` |
+| [submit-pr.lms](submit-pr.lms) | Human-in-the-loop PR: writes a review TOML for the operator, submits only on approval | write | `<owner> <repo> <title> [head] [--dry]` |
 
 ## Running
 

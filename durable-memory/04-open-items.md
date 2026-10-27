@@ -16,11 +16,13 @@ Candidate work after v0, in no fixed order.
 
 ## Platform
 
-- Release v0.1.0 (2026-10-26) ships the six `lmgh-OS-ARCH` assets +
-  SHA256SUMS, so `install="github:lmctl-ai/lmgh@latest"` resolves for users
-  without Go or a PATH binary; see 03 for the verified flow. Remaining:
-  automate asset building in CI on version tags (lmhtml's release workflow is
-  the model) instead of the local `scripts/release.sh`.
+- Release v0.2.0 (2026-10-27) adds the human-in-the-loop PR flow
+  (`pr_prepare` review TOML + `pr_submit`) on top of v0.1.0's six
+  `lmgh-OS-ARCH` assets + SHA256SUMS, so
+  `install="github:lmctl-ai/lmgh@latest"` resolves for users without Go or a
+  PATH binary; see 03 for the verified flow. Remaining: automate asset
+  building in CI on version tags (lmhtml's release workflow is the model)
+  instead of the local `scripts/release.sh`.
 - CI workflow (`.github/workflows/ci.yml`) was rewritten for Go + test.sh.
 - `gh issue list` does not populate `Issue.comments()` (gh exports a node
   list, not a count); acceptable until someone needs per-list counts.

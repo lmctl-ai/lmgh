@@ -39,7 +39,7 @@ chmod +x build/fake-bin/gh
 export PATH="$PWD/build/fake-bin:$PWD/build:$PATH"
 
 # --- CLI protocol -------------------------------------------------------
-[ "$("$HOST" --version)" = "lmgh 0.1.0" ] || fail "--version"
+[ "$("$HOST" --version)" = "lmgh 0.2.0" ] || fail "--version"
 ok "--version"
 cmp -s <("$HOST" --dsl-schema) schema/lmgh.dsl.json || fail "--dsl-schema bytes differ from schema/lmgh.dsl.json"
 ok "--dsl-schema equals schema/lmgh.dsl.json"
@@ -81,6 +81,7 @@ PY
 ok "every host schema signature is registered"
 
 # --- examples -----------------------------------------------------------
+rm -f pr-review-*.toml  # pr_prepare refuses to clobber; examples must start clean
 run_example() { # name [expected-exit]
   local name="$1" want="${2:-0}"
   "$LMSCRIPT" "examples/$name.lms" "build/$name.dslb" >/dev/null || fail "$name compile"
@@ -102,6 +103,8 @@ run_example failing-workflows 4
 run_example release-notes
 run_example search-repos
 run_example create-issue
+run_example submit-pr
+rm -f pr-review-*.toml  # submit-pr leaves its review file behind
 cmp -s build/repo-overview.txt tests/expected/repo-overview.txt || fail "repo-overview.txt drift"
 cmp -s build/open-prs.txt tests/expected/open-prs.txt || fail "open-prs.txt drift"
 cmp -s build/pr-triage.txt tests/expected/pr-triage.txt || fail "pr-triage.txt drift"
@@ -163,6 +166,54 @@ ok "dry-run write recorded in report"
 
 compile_chunk merge-dry 'gh.dry_run(true); print(gh.pr_merge("octo", "demo", 21, "squash"));'
 expect_run merge-dry 0 'dry-run: gh pr merge 21 -R octo/demo --squash'
+
+# human-in-the-loop PR flow: pr_prepare writes the review TOML, the operator
+# edits it, pr_submit pushes only that reviewed file's contents.
+compile_chunk pr-prepare 'print(gh.pr_prepare("octo", "demo", "Add feature", "Line one\nLine two", "main", "feature-x", true));'
+expect_run pr-prepare 0 'pr-review-octo-demo.toml'
+grep -q "^owner = 'octo'$" pr-review-octo-demo.toml || fail "review file owner"
+grep -q "^title = 'Add feature'$" pr-review-octo-demo.toml || fail "review file title"
+grep -q '^draft = true$' pr-review-octo-demo.toml || fail "review file draft"
+grep -q 'Line one\\nLine two' pr-review-octo-demo.toml || fail "review file body"
+ok "pr_prepare writes operator-reviewable TOML"
+
+compile_chunk pr-prepare-twice 'gh.pr_prepare("octo", "demo", "T", "b", "main", "h", false); gh.pr_prepare("octo", "demo", "T", "b", "main", "h", false);'
+expect_run pr-prepare-twice 3 'already exists'
+rm -f pr-review-octo-demo.toml
+
+expect_refusal pr-prepare-bad-ident 'gh.pr_prepare("octo/demo", "demo", "T", "b", "main", "h", false);' 'invalid owner'
+
+compile_chunk pr-submit-live 'let path = gh.pr_prepare("octo", "demo", "Reviewed title", "Body text", "main", "feature-x", false); let pr = gh.pr_submit("octo", "demo", path); print("#" + str(pr.number()) + " " + pr.state() + " " + pr.url());'
+expect_run pr-submit-live 0 '#43 OPEN https://github.com/octo/demo/pull/43'
+rm -f pr-review-octo-demo.toml
+
+# operator edits the TOML between prepare and submit; the edit must reach gh
+compile_chunk pr-edit-prepare 'gh.pr_prepare("octo", "demo", "Original title", "b", "main", "feature-x", false);'
+expect_run pr-edit-prepare 0 '"ok": true'
+sed -i 's/Original title/Operator edited title/' pr-review-octo-demo.toml
+compile_chunk pr-edit-submit 'let pr = gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml"); print("#" + str(pr.number()));'
+set +e
+out=$(FAKE_GH_LOG="$WORK/gh-write.log" "$HOST" --dsl "$WORK/pr-edit-submit.dslb" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *"#43"* ]] || fail "edited submit (exit $code): $out"
+grep -q 'Operator edited title' "$WORK/gh-write.log" || fail "edited title never reached gh: $(cat "$WORK/gh-write.log")"
+ok "operator edit flows through to gh pr create"
+
+expect_refusal pr-submit-mismatch 'gh.pr_submit("octo", "other", "pr-review-octo-demo.toml");' 'review file is for'
+rm -f pr-review-octo-demo.toml
+
+printf 'title = "unclosed\n' > pr-review-octo-demo.toml
+expect_refusal pr-submit-bad-toml 'gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml");' 'invalid TOML'
+printf 'owner = "octo"\nrepo = "demo"\ntitle = ""\nbase = "main"\nhead = "h"\n' > pr-review-octo-demo.toml
+expect_refusal pr-submit-empty-title 'gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml");' 'empty title'
+expect_refusal pr-submit-missing 'gh.pr_submit("octo", "demo", "no-such-review.toml");' 'cannot read review file'
+rm -f pr-review-octo-demo.toml
+
+compile_chunk pr-submit-dry 'gh.dry_run(true); let path = gh.pr_prepare("octo", "demo", "Gate check", "b", "main", "feature-x", false); let pr = gh.pr_submit("octo", "demo", path); print(pr.state()); report.write_text("build/test-chunks/pr-dry-report.txt");'
+expect_run pr-submit-dry 0 'dry-run'
+grep -q 'dry-run: pr_submit: octo/demo: Gate check (feature-x -> main)' "$WORK/pr-dry-report.txt" || fail "dry-run pr_submit report entry"
+rm -f pr-review-octo-demo.toml
+ok "pr_submit honors dry_run"
 
 compile_chunk app-fail 'report.add("test", "subject", "intentional"); report.fail_if_any();'
 expect_run app-fail 4 'APP_FAIL'

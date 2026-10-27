@@ -6,6 +6,7 @@ response is deterministic so example outputs can be diffed byte-for-byte.
 Never contacts GitHub and needs no token.
 """
 import json
+import os
 import sys
 
 OWNER_REPO = None  # resolved per call from argv
@@ -18,6 +19,14 @@ def out(text):
 def fail(message):
     sys.stderr.write(message + "\n")
     sys.exit(1)
+
+
+def log_argv(args):
+    # tests set FAKE_GH_LOG to inspect the exact argv a write op received
+    path = os.environ.get("FAKE_GH_LOG")
+    if path:
+        with open(path, "a") as f:
+            f.write(json.dumps(args) + "\n")
 
 
 def main():
@@ -84,7 +93,13 @@ def main():
         return
 
     if cmd == "issue" and args[1:2] == ["create"]:
+        log_argv(args)
         out("https://github.com/octo/demo/issues/42\n")
+        return
+
+    if cmd == "pr" and args[1:2] == ["create"]:
+        log_argv(args)
+        out("https://github.com/octo/demo/pull/43\n")
         return
 
     if cmd == "pr" and args[1:2] == ["list"]:
@@ -122,9 +137,10 @@ def main():
                 "reviewDecision": "APPROVED",
             }) + "\n")
         else:
+            number = int(args[2])
             out(json.dumps({
-                "number": 21, "title": "Fix login flow", "state": "OPEN",
-                "author": {"login": "carol"}, "url": "https://github.com/octo/demo/pull/21",
+                "number": number, "title": "Fix login flow", "state": "OPEN",
+                "author": {"login": "carol"}, "url": "https://github.com/octo/demo/pull/%d" % number,
                 "baseRefName": "main", "headRefName": "fix-login", "isDraft": False,
                 "labels": [{"name": "bug"}],
                 "createdAt": "2026-10-10T08:00:00Z", "updatedAt": "2026-10-11T10:00:00Z",

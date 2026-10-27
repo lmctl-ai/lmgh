@@ -28,7 +28,7 @@ Go 1.26; single dependency `github.com/lmctl-ai/lmcode-go` (pinned in
 
 ## CLI protocol
 
-- `lmgh --version` → `lmgh 0.1.0`
+- `lmgh --version` → `lmgh 0.2.0`
 - `lmgh --dsl-schema [--json]` → the embedded schema bytes (byte-equal to
   `schema/lmgh.dsl.json`; the header hash of every `.dslb` is sha256 of
   these bytes)
@@ -49,7 +49,7 @@ registry (`lmgh --dsl-signatures`) — checked both directions for host
 signatures in `test.sh`. The registry is intentionally a superset (full SDK
 std v3) so every compiler-emittable call binds.
 
-## Test flow (`./test.sh`, 30 checks)
+## Test flow (`./test.sh`, 44 checks)
 
 1. compiler present, ≥ 0.2.420 (`LMSCRIPT_BIN` overrides)
 2. `scripts/sync-cli.sh --verify` (auto-syncs when missing)

@@ -56,5 +56,14 @@ Field lists in `ops.go` were checked against `third_party/cli`:
   re-fetches the issue; under `dry_run(true)` it records a `dry-run` report
   entry and returns an `Issue` with `state() == "dry-run"` and `number() ==
   0`.
+- Human-in-the-loop PRs (v0.2.0): `pr_prepare(owner, repo, title, body, base,
+  head, draft)` writes `pr-review-<owner>-<repo>.toml` in the host's cwd and
+  returns its absolute path; it refuses to overwrite an existing review file.
+  `pr_submit(owner, repo, path)` decodes that file with
+  `pelletier/go-toml/v2` (strict: `DisallowUnknownFields`, non-empty title,
+  plain-name idents, owner/repo must match the call), then runs
+  `gh pr create` and re-fetches the PR. `pr_submit` honors `dry_run(true)`;
+  `pr_prepare` always writes (local file, not a remote mutation). TOML is the
+  first and only third-party Go module dependency (MIT).
 - Env: `GH_PROMPT_DISABLED=1`, `NO_COLOR=1`, `GH_PAGER=cat`, `PAGER=cat`.
   `LMGH_GH` overrides the binary path (testing / non-PATH installs).

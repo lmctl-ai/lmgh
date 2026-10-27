@@ -1,0 +1,23 @@
+# Human-in-the-loop PR submission. pr_prepare writes a review TOML for the
+# operator to edit; pr_submit pushes only that reviewed file's contents.
+# Nothing reaches GitHub until the operator approves and the script submits.
+# Run:    lmscript examples/submit-pr.lms <owner> <repo> <title> [head] [--dry]
+out = ARGV.len() > 0 ? ARGV[0] : "build/submit-pr.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+title = ARGV.len() > 3 ? ARGV[3] : "Add pr review flow";
+head = ARGV.len() > 4 ? ARGV[4] : "pr-review-flow";
+dry = ARGV.len() > 5 ? ARGV[5] == "--dry" : true;
+
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+gh.dry_run(${dry});
+let path = gh.pr_prepare(${owner}, ${repo}, ${title}, "What changed and why.", "main", ${head}, false);
+if (gh.is_dry_run()) {
+  print("review file ready for " + ${owner} + "/" + ${repo} + ": " + ${title});
+  print("operator edits the TOML, then re-runs with --live to submit");
+} else {
+  let pr = gh.pr_submit(${owner}, ${repo}, path);
+  print("created PR #" + str(pr.number()) + ": " + pr.url());
+}
+end _lmcode_
+savedsl(p, out);

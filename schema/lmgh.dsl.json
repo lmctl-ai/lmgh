@@ -31,6 +31,12 @@
         "pr_triage": [
           { "params": ["string", "string", "int"], "returns": "Triage" }
         ],
+        "pr_prepare": [
+          { "params": ["string", "string", "string", "string", "string", "string", "bool"], "returns": "string" }
+        ],
+        "pr_submit": [
+          { "params": ["string", "string", "string"], "returns": "Pr" }
+        ],
         "pr_merge": [
           { "params": ["string", "string", "int", "string"], "returns": "string" }
         ],
