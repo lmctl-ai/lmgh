@@ -32,7 +32,7 @@ same pseudo-version as lmcode-go-sample).
 
 ## CLI protocol
 
-- `lmgh --version` → `lmgh 0.2.1`
+- `lmgh --version` → `lmgh 0.2.2`
 - `lmgh --dsl-schema [--json]` → the embedded schema bytes (byte-equal to
   `schema/lmgh.dsl.json`; the header hash of every `.dslb` is sha256 of
   these bytes)

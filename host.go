@@ -13,7 +13,7 @@ import (
 	"github.com/lmctl-ai/lmcode-go"
 )
 
-const version = "0.2.1"
+const version = "0.2.2"
 
 // ghVersionRe parses the first line of `gh --version`.
 var ghVersionRe = regexp.MustCompile(`gh version (\d+)\.(\d+)\.(\d+)`)
