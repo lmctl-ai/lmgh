@@ -1,0 +1,25 @@
+# Human-in-the-loop PR review submission. pr_review_prepare writes a verdict
+# TOML for the operator to edit; pr_review_submit posts only that reviewed
+# file's contents. Nothing reaches GitHub until the operator approves and the
+# script submits.
+# Run:    lmscript examples/review-pr.lms <owner> <repo> <number> [event] [--dry]
+out = ARGV.len() > 0 ? ARGV[0] : "build/review-pr.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+number = ARGV.len() > 3 ? num(ARGV[3]) : 21;
+event = ARGV.len() > 4 ? ARGV[4] : "APPROVE";
+dry = ARGV.len() > 5 ? ARGV[5] == "--dry" : true;
+
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+gh.dry_run(${dry});
+if (gh.is_dry_run()) {
+  gh.pr_review_prepare(${owner}, ${repo}, ${number}, ${event}, "Looks good to me.");
+  print("review verdict file ready for " + ${owner} + "/" + ${repo} + "#" + str(${number}) + ": " + ${event});
+  print("operator edits the TOML, then re-runs with --live to submit");
+} else {
+  let path = "pr-review-verdict-" + ${owner} + "-" + ${repo} + "-" + str(${number}) + ".toml";
+  let res = gh.pr_review_submit(${owner}, ${repo}, ${number}, path);
+  print("submitted review: " + res);
+}
+end _lmcode_
+savedsl(p, out);

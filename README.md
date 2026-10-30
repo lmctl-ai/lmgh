@@ -64,12 +64,20 @@ empty title, or a repository mismatch are refused) and runs `gh pr create`
 from it. Nothing reaches GitHub between prepare and submit; `pr_submit` also
 honors `gh.dry_run(bool)`. See [`examples/submit-pr.lms`](examples/submit-pr.lms).
 
+Human-in-the-loop PR reviews: `pr_review_prepare(owner, repo, number, event, body)`
+writes `pr-review-verdict-<owner>-<repo>-<number>.toml` with `event` set to
+`APPROVE`, `REQUEST_CHANGES`, or `COMMENT` (refusing an empty body for
+`REQUEST_CHANGES` and `COMMENT`, and refusing to overwrite an existing file).
+`pr_review_submit(owner, repo, number, path)` strict-decodes that file,
+verifies `owner`/`repo`/`number` and `event`, and runs `gh pr review` with
+`--body-file`, honoring `gh.dry_run(bool)`. See [`examples/review-pr.lms`](examples/review-pr.lms).
+
 ## Develop
 
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 44 checks: build, parity, examples vs a fake gh, refusals
+./test.sh                  # 73 checks: build, parity, examples vs a fake gh, refusals
 ```
 
 Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`

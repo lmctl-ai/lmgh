@@ -19,7 +19,7 @@ preserved in git; catalog knowledge migrated into the Go host).
 ```sh
 scripts/sync-cli.sh   # fetch the pinned cli/cli checkout
 go build -o build/lmgh .
-./test.sh             # 44 checks: build, parity, examples vs fake gh, refusals
+./test.sh             # 73 checks: build, parity, examples vs fake gh, refusals
 ```
 
 ## Document map
