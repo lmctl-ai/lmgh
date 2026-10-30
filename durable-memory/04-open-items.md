@@ -7,9 +7,20 @@ Candidate work after v0, in no fixed order.
 - `api_json(path)` escape hatch: blocked because the compiler rejects std
   `Json` as a host-declared return type. Options: compiler support, or a
   host `ApiResult` type with `get`/`at` navigation.
-- More write ops with dry-run support: `issue_close`, `pr_comment`,
-  `label_add`, `release_create`. gh2's catalog (git history) is the
-  reference list.
+- More write ops with dry-run support: `issue_close`, `label_add`,
+  `release_create`, and inline/line-level PR review comments (summary-level PR
+  reviews — `APPROVE`, `REQUEST_CHANGES`, `COMMENT` — are now covered by the
+  human-in-the-loop `pr_review_prepare`/`pr_review_submit` flow). gh2's
+  catalog (git history) is the reference list.
+- Harden `pr_prepare`/`readReview` (`writeReview` / `readReview` in
+  `pr_review.go`) to match `writeReviewVerdict`/`readReviewVerdict`: `readReview`
+  still relies solely on `go-toml/v2` struct decoding with
+  `DisallowUnknownFields()`, which matches struct fields case-insensitively and
+  allows a later case-variant key (e.g. `Title` after `title`) to overwrite an
+  earlier value, and `writeReview` still uses `os.Stat` + `os.WriteFile` instead
+  of `os.OpenFile(..., O_WRONLY|O_CREATE|O_EXCL, 0o644)`. Both are pre-existing
+  from v0.2.0 and intentionally left untouched in the `pr_review_prepare` /
+  `pr_review_submit` change to keep PR scope tight.
 - `pr_triage` additions when gh exposes them: unresolved review threads
   (needs `reviewThreads`, absent from gh v2.103.3).
 - Pagination beyond `--limit` (cursors via `gh api`).

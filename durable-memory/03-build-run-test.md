@@ -53,7 +53,7 @@ registry (`lmgh --dsl-signatures`) — checked both directions for host
 signatures in `test.sh`. The registry is intentionally a superset (full SDK
 std v3) so every compiler-emittable call binds.
 
-## Test flow (`./test.sh`, 44 checks)
+## Test flow (`./test.sh`, 73 checks)
 
 1. compiler present, ≥ 0.2.420 (`LMSCRIPT_BIN` overrides)
 2. `scripts/sync-cli.sh --verify` (auto-syncs when missing)
