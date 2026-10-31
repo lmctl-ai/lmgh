@@ -15,17 +15,15 @@ for (i in range(0, releases.len())) {
 }
 if (!found) { report.add("release-missing", ${owner} + "/" + ${repo}, "no stable release"); }
 let runs = gh.run_list(${owner}, ${repo}, 100);
-let ci = false;
-for (i in range(0, runs.len())) {
-  let run = runs.at(i);
-  let newest = true;
-  for (j in range(0, i)) { if (runs.at(j).name() == run.name() && runs.at(j).branch() == info.default_branch()) { newest = false; } }
-  if (newest && str_lower(run.name()) == "ci" && run.branch() == info.default_branch()) {
-    ci = true;
+let seen = str_list();
+for (run in runs) {
+  if (run.branch() == info.default_branch() && !seen.contains(run.name())) {
+    seen.add(run.name());
+    print("CI " + run.name() + " " + run.status() + "/" + run.conclusion());
     if (run.status() != "completed" || run.conclusion() != "success") { report.add("ci-not-green", ${owner} + "/" + ${repo}, run.url()); }
   }
 }
-if (!ci) { report.add("ci-missing", ${owner} + "/" + ${repo}, "no latest CI run on default branch"); }
+if (seen.len() == 0) { report.add("ci-missing", ${owner} + "/" + ${repo}, "no default-branch runs in the 100-run window"); }
 report.write_text("build/release-readiness.txt");
 report.fail_if_any();
 end _lmcode_

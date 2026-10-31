@@ -1,0 +1,44 @@
+# Explain recent failed runs: first recognized error per failed job, with links.
+# Requires lmgh >= 0.2.3 (unreleased; build main until the owner releases it).
+# Args: output.dslb owner repo [run-limit=5]. This includes historical failures.
+out = ARGV.len() > 0 ? ARGV[0] : "build/ci-errors.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+limit = ARGV.len() > 3 ? num(ARGV[3]) : 5;
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let runs = gh.run_list(${owner}, ${repo}, ${limit});
+let failing = runs.failing();
+for (run in failing) {
+  print("FAIL " + run.name() + " #" + str(run.id()) + " " + run.url());
+  let logs = gh.run_failed_log(${owner}, ${repo}, run.id());
+  let jobs = str_list();
+  let shown = str_list();
+  for (line in str_split(logs, "\n")) {
+    let fields = str_split(line, "\t");
+    if (fields.len() >= 3) {
+      let job = fields.at(0);
+      if (!jobs.contains(job)) { jobs.add(job); }
+      let lower = str_lower(line);
+      if (!shown.contains(job) && (str_contains(lower, "##[error]") || str_contains(lower, "error:") || str_contains(lower, " fail:") || str_contains(lower, " failed") || str_contains(lower, "panic:") || str_contains(lower, "fatal:") || str_contains(lower, "traceback"))) {
+        print("  " + line);
+        report.add("ci-error", run.url() + " / " + job, line);
+        shown.add(job);
+      }
+    }
+  }
+  for (job in jobs) {
+    if (!shown.contains(job)) {
+      print("  " + job + ": no recognized error line; inspect " + run.url());
+      report.add("ci-log-unclassified", run.url(), job + ": failed-job logs available, no recognized error line");
+    }
+  }
+  if (jobs.len() == 0) {
+    print("  unstructured failed-job log; inspect " + run.url());
+    report.add("ci-log-unclassified", run.url(), "unstructured failed-job log");
+  }
+}
+print("failed runs: " + str(failing.len()) + " / " + str(runs.len()) + " recent runs scanned (historical failures included)");
+report.write_json("build/ci-errors.json");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

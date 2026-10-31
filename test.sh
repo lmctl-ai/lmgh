@@ -23,6 +23,10 @@ ok "third_party/cli pinned by cli.lock"
 CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh . || fail "go build"
 HOST=build/lmgh
 ok "go build (CGO disabled)"
+go test ./... || fail "Go host operation tests"
+ok "Go host operation tests"
+cmp -s schema/lmgh.host.json schema/lmgh.dsl.json || fail "host/embedded schema drift"
+ok "host and embedded schema bytes agree"
 python3 tests/check-host-flags.py schema/lmgh.dsl.json "$HOST" || fail "hard flag cutover"
 
 # fake gh on PATH for every run below
@@ -227,5 +231,8 @@ out=$("$HOST" --lmcode "$WORK/absent.dslb" 2>&1); code=$?
 set -e
 [ "$code" = 4 ] && [[ "$out" == *'APP_FAIL'* ]] || fail "missing bytecode file (exit $code): $out"
 ok "missing bytecode file exits 4"
+
+python3 tests/check-recipes.py "$LMSCRIPT" "$HOST" || fail "offline recipe scenarios"
+ok "all task recipes match pinned stdout and reports"
 
 echo "PASS: $PASS checks"

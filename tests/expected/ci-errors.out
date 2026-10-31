@@ -1,0 +1,5 @@
+FAIL ci #1001 https://github.com/octo/demo/actions/runs/1001
+  linux	Test	2026-10-31T12:00:00Z	##[error]expected 2 got 1
+  windows	Build	2026-10-31T12:00:02Z	error: missing header
+failed runs: 1 / 2 recent runs scanned (historical failures included)
+{"ok": false, "phase": "run", "code": "APP_FAIL", "message": "dsl line 42:8: report has 2 finding(s), expected none", "line": 42, "column": 8}

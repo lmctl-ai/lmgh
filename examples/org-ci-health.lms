@@ -1,30 +1,24 @@
-# Check the newest run for each workflow on each repository's default branch.
-# argv: output, owner, comma-separated repositories (default demo).
+# Latest observed default-branch run per workflow (bounded to 100 runs/repo).
+# Args: output.dslb owner repo[,repo...] ; defaults octo/demo.
 out = ARGV.len() > 0 ? ARGV[0] : "build/org-ci-health.dslb";
 owner = ARGV.len() > 1 ? ARGV[1] : "octo";
 repos = ARGV.len() > 2 ? ARGV[2] : "demo";
 p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+print("REPOSITORY WORKFLOW BRANCH RESULT");
 for (repo in str_split(${repos}, ",")) {
   let info = gh.repo_view(${owner}, repo);
   let runs = gh.run_list(${owner}, repo, 100);
-  for (i in range(0, runs.len())) {
-    let run = runs.at(i);
-    let newest = true;
-    for (j in range(0, i)) { if (runs.at(j).name() == run.name() && runs.at(j).branch() == info.default_branch()) { newest = false; } }
-    if (newest && run.branch() == info.default_branch()) {
-      if (run.status() != "completed") {
-        print("PENDING " + ${owner} + "/" + repo + " " + run.name());
-        report.add("ci-pending", ${owner} + "/" + repo, run.name() + " " + run.url());
-      } else if (run.conclusion() != "success" && run.conclusion() != "skipped") {
-        print("BAD " + ${owner} + "/" + repo + " " + run.name() + " " + run.conclusion());
-        report.add("ci-failure", ${owner} + "/" + repo, run.name() + " " + run.url());
-      } else { print("OK " + ${owner} + "/" + repo + " " + run.name() + " " + run.conclusion()); }
-    } else if (newest) {
-      let has_default = false;
-      for (j in range(0, runs.len())) { if (runs.at(j).name() == run.name() && runs.at(j).branch() == info.default_branch()) { has_default = true; } }
-      if (!has_default) { print("MISSING " + ${owner} + "/" + repo + " " + run.name()); report.add("ci-missing", ${owner} + "/" + repo, run.name()); }
+  let seen = str_list();
+  for (run in runs) {
+    if (run.branch() == info.default_branch() && !seen.contains(run.name())) {
+      seen.add(run.name());
+      print(${owner} + "/" + repo + " " + run.name() + " " + run.branch() + " " + run.status() + "/" + run.conclusion());
+      if (run.status() != "completed" || run.conclusion() != "success") {
+        report.add("ci-not-green", ${owner} + "/" + repo, run.name() + " " + run.url());
+      }
     }
   }
+  if (seen.len() == 0) { report.add("ci-missing", ${owner} + "/" + repo, "no default-branch runs in the 100-run window"); }
 }
 report.write_json("build/org-ci-health.json");
 report.fail_if_any();

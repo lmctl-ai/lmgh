@@ -1,5 +1,5 @@
-# Find open pull requests updated before an explicit ISO cutoff (argv3).
-# Supplying the cutoff keeps date arithmetic in the invoking host and is auditable.
+# Open PRs inactive for N days (default 30), with draft/conflict findings.
+# Args: output.dslb owner repo [days=30]; age is evaluated when compiling.
 out = ARGV.len() > 0 ? ARGV[0] : "build/stale-prs.dslb";
 owner = ARGV.len() > 1 ? ARGV[1] : "octo";
 repo = ARGV.len() > 2 ? ARGV[2] : "demo";

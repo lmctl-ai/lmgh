@@ -1,0 +1,2 @@
+release-missing: octo/demo: no stable release
+ci-missing: octo/demo: no default-branch runs in the 100-run window
