@@ -191,7 +191,10 @@ def main():
     if cmd == "run" and args[1:2] == ["view"] and "--log-failed" in args:
         if args[2] != "1001":
             fail("fake gh: failed log is only canned for run 1001")
-        out("ci\tbuild\tRun tests\nci\tbuild\tFAIL: assertion failed\n")
+        out("linux\tTest\t2026-10-31T12:00:00Z\t##[error]expected 2 got 1\n"
+            "linux\tTest\t2026-10-31T12:00:01Z\t##[error]expected 2 got 1\n"
+            "windows\tBuild\t2026-10-31T12:00:02Z\terror: missing header\n"
+            "windows\tBuild\t2026-10-31T12:00:03Z\terror: missing header\n")
         return
 
     if cmd == "search" and args[1:2] == ["repos"]:

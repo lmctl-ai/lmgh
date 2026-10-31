@@ -20,13 +20,22 @@ func fakeGH(t *testing.T, body string) *Host {
 }
 
 func TestRunFailedLogUsesExactArgvAndReturnsOutput(t *testing.T) {
-	h := fakeGH(t, "printf 'failed\\nlog\\n'")
+	log := filepath.Join(t.TempDir(), "argv")
+	t.Setenv("LMGH_ARGV_LOG", log)
+	h := fakeGH(t, "printf '%s\\n' \"$*\" > \"$LMGH_ARGV_LOG\"; printf 'failed\\nlog\\n'")
 	out, err := h.runGhFailedLog("octo", "demo", 1001)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if out != "failed\nlog\n" {
 		t.Fatalf("output %q", out)
+	}
+	argv, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(argv)) != "run view 1001 -R octo/demo --log-failed" {
+		t.Fatalf("argv %q", argv)
 	}
 }
 
@@ -44,15 +53,9 @@ func TestRunFailedLogValidatesInputs(t *testing.T) {
 
 func TestRunFailedLogCapsStdout(t *testing.T) {
 	h := fakeGH(t, "head -c 2097152 /dev/zero")
-	out, err := h.runGhFailedLog("octo", "demo", 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(out) != ghFailedLogStdoutLimit {
-		t.Fatalf("got %d bytes, want %d", len(out), ghFailedLogStdoutLimit)
-	}
-	if strings.Trim(out, "\x00") != "" {
-		t.Fatal("output was not zero-filled")
+	_, err := h.runGhFailedLog("octo", "demo", 1)
+	if err == nil || !strings.Contains(err.Error(), "exceeded 1 MiB cap") {
+		t.Fatalf("want cap refusal, got %v", err)
 	}
 }
 
@@ -60,5 +63,13 @@ func TestRunFailedLogRejectsEmptySuccess(t *testing.T) {
 	h := fakeGH(t, "exit 0")
 	if _, err := h.runGhFailedLog("octo", "demo", 1); err == nil || !strings.Contains(err.Error(), "no failed-job logs") {
 		t.Fatalf("want honest empty-log error, got %v", err)
+	}
+}
+
+func TestRunFailedLogCapsStderrOnFailure(t *testing.T) {
+	h := fakeGH(t, "head -c 100000 /dev/zero >&2; exit 1")
+	_, err := h.runGhFailedLog("octo", "demo", 1)
+	if err == nil || len(err.Error()) > 4200 {
+		t.Fatalf("bounded stderr error, got %v", err)
 	}
 }

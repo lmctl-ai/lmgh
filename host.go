@@ -177,8 +177,10 @@ func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
 	cmd := exec.CommandContext(ctx, h.ghPath, "run", "view", strconv.FormatInt(runID, 10), "-R", owner+"/"+repo, "--log-failed")
 	cmd.Env = append(os.Environ(), "GH_PROMPT_DISABLED=1", "NO_COLOR=1", "GH_PAGER=cat", "PAGER=cat")
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &limitedBuffer{Buffer: &stdout, Limit: ghFailedLogStdoutLimit}
-	cmd.Stderr = &limitedBuffer{Buffer: &stderr, Limit: ghFailedLogStderrLimit}
+	stdoutCapture := &limitedBuffer{Buffer: &stdout, Limit: ghFailedLogStdoutLimit}
+	stderrCapture := &limitedBuffer{Buffer: &stderr, Limit: ghFailedLogStderrLimit}
+	cmd.Stdout = stdoutCapture
+	cmd.Stderr = stderrCapture
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
 		return "", lmcode.NewHostError("run_failed_log: gh timed out after 30s")
@@ -191,10 +193,16 @@ func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
 		if detail == "" {
 			detail = "no diagnostic output"
 		}
+		if len(detail) > 4096 {
+			detail = detail[:4096] + "..."
+		}
 		return "", lmcode.NewHostError("run_failed_log: " + detail)
 	}
-	if stdout.Len() == 0 {
+	if stdout.Len() == 0 || strings.TrimSpace(stdout.String()) == "" {
 		return "", lmcode.NewHostError("run_failed_log: gh returned no failed-job logs")
+	}
+	if stdoutCapture.Truncated {
+		return "", lmcode.NewHostError("run_failed_log: output exceeded 1 MiB cap")
 	}
 	return stdout.String(), nil
 }
