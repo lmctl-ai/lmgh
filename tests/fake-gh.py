@@ -152,6 +152,24 @@ def main():
         out("https://github.com/octo/demo/pull/21\n")
         return
 
+    if cmd == "pr" and args[1:2] == ["review"]:
+        int(args[2])
+        if "-R" not in args or args.index("-R") + 1 >= len(args) or "/" not in args[args.index("-R") + 1]:
+            fail("gh pr review requires -R owner/repo")
+        flags = [f for f in ("--approve", "--request-changes", "--comment") if f in args]
+        if len(flags) != 1:
+            fail("need exactly one of --approve, --request-changes, or --comment")
+        if "--body-file" not in args or args.index("--body-file") + 1 >= len(args):
+            fail("gh pr review requires --body-file")
+        bf = args[args.index("--body-file") + 1]
+        with open(bf, "r", encoding="utf-8") as f:
+            body = f.read()
+        if flags[0] in ("--request-changes", "--comment") and not body:
+            fail("body cannot be blank for %s review" % flags[0].lstrip("-"))
+        log_argv(args)
+        log_argv(["--body-file-content", body])
+        return
+
     if cmd == "release" and args[1:2] == ["list"]:
         out(json.dumps([
             {

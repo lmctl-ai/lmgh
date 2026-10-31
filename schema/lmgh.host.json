@@ -37,6 +37,12 @@
         "pr_submit": [
           { "params": ["string", "string", "string"], "returns": "Pr" }
         ],
+        "pr_review_prepare": [
+          { "params": ["string", "string", "int", "string", "string"], "returns": "string" }
+        ],
+        "pr_review_submit": [
+          { "params": ["string", "string", "int", "string"], "returns": "string" }
+        ],
         "pr_merge": [
           { "params": ["string", "string", "int", "string"], "returns": "string" }
         ],

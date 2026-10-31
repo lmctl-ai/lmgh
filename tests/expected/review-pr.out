@@ -1,0 +1,3 @@
+review verdict file ready for octo/demo#21: APPROVE
+operator edits the TOML, then re-runs with --live to submit
+{"ok": true, "result": null}

@@ -65,5 +65,13 @@ Field lists in `ops.go` were checked against `third_party/cli`:
   `gh pr create` and re-fetches the PR. `pr_submit` honors `dry_run(true)`;
   `pr_prepare` always writes (local file, not a remote mutation). TOML is the
   first and only third-party Go module dependency (MIT).
+- Human-in-the-loop PR reviews: `pr_review_prepare(owner, repo, number, event,
+  body)` writes `pr-review-verdict-<owner>-<repo>-<number>.toml` (`event` in
+  `APPROVE`, `REQUEST_CHANGES`, `COMMENT`; non-empty body required for
+  `REQUEST_CHANGES` and `COMMENT`; never clobbers an existing file).
+  `pr_review_submit(owner, repo, number, path)` strict-decodes that file,
+  verifies owner/repo/number/event/body, and runs `gh pr review <number> -R
+  <owner>/<repo> --approve|--request-changes|--comment --body-file <tmp>`,
+  honoring `dry_run(true)`.
 - Env: `GH_PROMPT_DISABLED=1`, `NO_COLOR=1`, `GH_PAGER=cat`, `PAGER=cat`.
   `LMGH_GH` overrides the binary path (testing / non-PATH installs).
