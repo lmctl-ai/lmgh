@@ -33,7 +33,7 @@ savedsl(p, out);
 ```
 
 ```sh
-lmscript open-prs.lms <owner> <repo>   # compiles AND fetches the lmgh host on first use
+lmscript open-prs.lms build/open-prs.dslb <owner> <repo>   # compiles AND fetches the lmgh host on first use
 lmgh --lmcode build/open-prs.dslb         # or run it straight from the lmscript tool cache
 ```
 
@@ -47,11 +47,34 @@ The schema ([`schema/lmgh.dsl.json`](schema/lmgh.dsl.json)) is the contract:
 catalog) and `report: Report` (findings log with `write_text`, `write_json`
 and `fail_if_any`, which fails with exit 4 / `APP_FAIL` when non-empty).
 
+## Recipes: check the CI errors
+
+[Task recipes](examples/README.md) explain failures, compare default-branch CI
+across repositories, find stale/unreviewed PRs, check release readiness, triage
+unlabeled issues and audit missing repository metadata. Findings are saved before
+exit 4; host/API errors use exit 3. All seven are read-only on GitHub.
+
+```sh
+mkdir -p build
+# Needs the forthcoming lmgh >= 0.2.3; build main until the owner releases it.
+lmscript examples/ci-errors.lms build/ci-errors.dslb lmctl-ai lmgcp 5
+lmgh --lmcode build/ci-errors.dslb
+# Existing lmgh 0.2.2 operations:
+lmscript examples/org-ci-health.lms build/health.dslb lmctl-ai lmgh,lmgcp
+lmgh --lmcode build/health.dslb
+```
+
+The CI recipe retrieves failed-job logs and reports the first recognized error
+per job, rather than stopping at a red run badge. Reports retain run URLs and
+job names; scan limits and log heuristics are documented with each recipe.
+
 ## Operation catalog (v0)
 
 Reads: `repo_view`, `issue_list`, `issue_view`, `pr_list`, `pr_view`,
 `pr_triage`, `release_list`, `run_list`, `search_repos`, `search_issues`,
-`search_prs`, `file_text`.
+`search_prs`, `file_text`. New on main for the next release (>= 0.2.3):
+`Run.id()` and `run_failed_log(owner, repo, run_id)` expose failed-job logs with
+a 30-second deadline and 1 MiB output cap; missing or partial logs are errors.
 Writes: `issue_create`, `pr_merge` — both honor `gh.dry_run(bool)`, which
 records intent in the report instead of calling `gh`.
 
@@ -69,7 +92,7 @@ honors `gh.dry_run(bool)`. See [`examples/submit-pr.lms`](examples/submit-pr.lms
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 44 checks: build, parity, examples vs a fake gh, refusals
+./test.sh                  # 47 checks, including 14 offline recipe scenarios
 ```
 
 Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`
