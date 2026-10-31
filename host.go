@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lmctl-ai/lmcode-go"
 )
@@ -152,6 +155,71 @@ func (h *Host) runGh(args ...string) (string, error) {
 	}
 	return stdout.String(), nil
 }
+
+const ghFailedLogStdoutLimit = 1 << 20
+const ghFailedLogStderrLimit = 64 << 10
+
+func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
+	if err := checkIdent("owner", owner); err != nil {
+		return "", err
+	}
+	if err := checkIdent("repo", repo); err != nil {
+		return "", err
+	}
+	if runID < 1 {
+		return "", lmcode.NewHostError("run_failed_log: run id must be positive")
+	}
+	if err := h.ensureGh(); err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, h.ghPath, "run", "view", strconv.FormatInt(runID, 10), "-R", owner+"/"+repo, "--log-failed")
+	cmd.Env = append(os.Environ(), "GH_PROMPT_DISABLED=1", "NO_COLOR=1", "GH_PAGER=cat", "PAGER=cat")
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &limitedBuffer{Buffer: &stdout, Limit: ghFailedLogStdoutLimit}
+	cmd.Stderr = &limitedBuffer{Buffer: &stderr, Limit: ghFailedLogStderrLimit}
+	err := cmd.Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		return "", lmcode.NewHostError("run_failed_log: gh timed out after 30s")
+	}
+	if err != nil {
+		detail := strings.TrimSpace(stderr.String())
+		if detail == "" {
+			detail = err.Error()
+		}
+		if detail == "" {
+			detail = "no diagnostic output"
+		}
+		return "", lmcode.NewHostError("run_failed_log: " + detail)
+	}
+	if stdout.Len() == 0 {
+		return "", lmcode.NewHostError("run_failed_log: gh returned no failed-job logs")
+	}
+	return stdout.String(), nil
+}
+
+type limitedBuffer struct {
+	Buffer    *bytes.Buffer
+	Limit     int
+	Truncated bool
+}
+
+func (b *limitedBuffer) Write(p []byte) (int, error) {
+	remaining := b.Limit - b.Buffer.Len()
+	if remaining <= 0 {
+		b.Truncated = true
+		return len(p), nil
+	}
+	if len(p) > remaining {
+		b.Buffer.Write(p[:remaining])
+		b.Truncated = true
+		return len(p), nil
+	}
+	return b.Buffer.Write(p)
+}
+
+var _ io.Writer = (*limitedBuffer)(nil)
 
 // runGhJSON runs gh and decodes its --json output into dest.
 func runGhJSON[T any](h *Host, args []string, dest *T) error {

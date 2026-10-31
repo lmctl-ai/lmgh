@@ -172,20 +172,26 @@ def main():
     if cmd == "run" and args[1:2] == ["list"]:
         out(json.dumps([
             {
-                "name": "ci", "displayTitle": "ci: fix login",
+                "databaseId": 1001, "name": "ci", "displayTitle": "ci: fix login",
                 "status": "completed", "conclusion": "failure",
                 "url": "https://github.com/octo/demo/actions/runs/1001",
                 "headBranch": "fix-login", "event": "push",
                 "createdAt": "2026-10-20T09:00:00Z", "updatedAt": "2026-10-20T09:10:00Z",
             },
             {
-                "name": "ci", "displayTitle": "ci: main",
+                "databaseId": 1000, "name": "ci", "displayTitle": "ci: main",
                 "status": "completed", "conclusion": "success",
                 "url": "https://github.com/octo/demo/actions/runs/1000",
                 "headBranch": "main", "event": "push",
                 "createdAt": "2026-10-19T09:00:00Z", "updatedAt": "2026-10-19T09:08:00Z",
             },
         ]) + "\n")
+        return
+
+    if cmd == "run" and args[1:2] == ["view"] and "--log-failed" in args:
+        if args[2] != "1001":
+            fail("fake gh: failed log is only canned for run 1001")
+        out("ci\tbuild\tRun tests\nci\tbuild\tFAIL: assertion failed\n")
         return
 
     if cmd == "search" and args[1:2] == ["repos"]:

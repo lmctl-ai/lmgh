@@ -209,59 +209,59 @@ func (h *Host) registerGh() {
 
 	method("pr_prepare", []string{"string", "string", "string", "string", "string", "string", "bool"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
 		owner, repo, title, base, head := vstr(args[0]), vstr(args[1]), vstr(args[2]), vstr(args[4]), vstr(args[5])
-	body := vstr(args[3])
-	draft := vbool(args[6])
-	if title == "" {
-		return lmcode.None(), lmcode.NewHostError("pr_prepare: title must not be empty")
-	}
-	for _, id := range [][2]string{{"owner", owner}, {"repo", repo}, {"base", base}, {"head", head}} {
-		if err := checkIdent(id[0], id[1]); err != nil {
-			return lmcode.None(), lmcode.NewHostError("pr_prepare: " + err.Error())
+		body := vstr(args[3])
+		draft := vbool(args[6])
+		if title == "" {
+			return lmcode.None(), lmcode.NewHostError("pr_prepare: title must not be empty")
 		}
-	}
-	path, err := writeReview(&prReview{Owner: owner, Repo: repo, Title: title, Base: base, Head: head, Draft: draft, Body: body})
-	if err != nil {
-		return lmcode.None(), err
-	}
-	return lmcode.String(path), nil
-})
+		for _, id := range [][2]string{{"owner", owner}, {"repo", repo}, {"base", base}, {"head", head}} {
+			if err := checkIdent(id[0], id[1]); err != nil {
+				return lmcode.None(), lmcode.NewHostError("pr_prepare: " + err.Error())
+			}
+		}
+		path, err := writeReview(&prReview{Owner: owner, Repo: repo, Title: title, Base: base, Head: head, Draft: draft, Body: body})
+		if err != nil {
+			return lmcode.None(), err
+		}
+		return lmcode.String(path), nil
+	})
 
-method("pr_submit", []string{"string", "string", "string"}, "Pr", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
-	owner, repo, path := vstr(args[0]), vstr(args[1]), vstr(args[2])
-	r, err := readReview(path)
-	if err != nil {
-		return lmcode.None(), err
-	}
-	if err := r.expectRepo(owner, repo); err != nil {
-		return lmcode.None(), err
-	}
-	if h.dryRun {
-		h.report.add("dry-run", "pr_submit", owner+"/"+repo+": "+r.Title+" ("+r.Head+" -> "+r.Base+")")
-		p := &Pr{title: r.Title, state: "dry-run", url: owner + "/" + repo, base: r.Base, head: r.Head, draft: r.Draft}
-		h.prs = append(h.prs, p)
-		return lmcode.Object("Pr", p), nil
-	}
-	argv := []string{"pr", "create", "-R", owner + "/" + repo, "--title", r.Title, "--body", r.Body,
-		"--base", r.Base, "--head", r.Head}
-	if r.Draft {
-		argv = append(argv, "--draft")
-	}
-	url, err := h.runGh(argv...)
-	if err != nil {
-		return lmcode.None(), err
-	}
-	number, err := numberFromURL(strings.TrimSpace(url))
-	if err != nil {
-		return lmcode.None(), err
-	}
-	v, err := h.prByNumber(owner, repo, number)
-	if err != nil {
-		return lmcode.None(), err
-	}
-	return lmcode.Object("Pr", v), nil
-})
+	method("pr_submit", []string{"string", "string", "string"}, "Pr", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
+		owner, repo, path := vstr(args[0]), vstr(args[1]), vstr(args[2])
+		r, err := readReview(path)
+		if err != nil {
+			return lmcode.None(), err
+		}
+		if err := r.expectRepo(owner, repo); err != nil {
+			return lmcode.None(), err
+		}
+		if h.dryRun {
+			h.report.add("dry-run", "pr_submit", owner+"/"+repo+": "+r.Title+" ("+r.Head+" -> "+r.Base+")")
+			p := &Pr{title: r.Title, state: "dry-run", url: owner + "/" + repo, base: r.Base, head: r.Head, draft: r.Draft}
+			h.prs = append(h.prs, p)
+			return lmcode.Object("Pr", p), nil
+		}
+		argv := []string{"pr", "create", "-R", owner + "/" + repo, "--title", r.Title, "--body", r.Body,
+			"--base", r.Base, "--head", r.Head}
+		if r.Draft {
+			argv = append(argv, "--draft")
+		}
+		url, err := h.runGh(argv...)
+		if err != nil {
+			return lmcode.None(), err
+		}
+		number, err := numberFromURL(strings.TrimSpace(url))
+		if err != nil {
+			return lmcode.None(), err
+		}
+		v, err := h.prByNumber(owner, repo, number)
+		if err != nil {
+			return lmcode.None(), err
+		}
+		return lmcode.Object("Pr", v), nil
+	})
 
-method("pr_merge", []string{"string", "string", "int", "string"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
+	method("pr_merge", []string{"string", "string", "int", "string"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
 		owner, repo := vstr(args[0]), vstr(args[1])
 		number := vint(args[2])
 		kind := vstr(args[3])
@@ -317,19 +317,27 @@ method("pr_merge", []string{"string", "string", "int", "string"}, "string", func
 		var rows []ghRun
 		err := runGhJSON(h, []string{"run", "list", "-R", owner + "/" + repo,
 			"--limit", strconv.FormatInt(limit, 10), "--json",
-			"name,displayTitle,status,conclusion,url,headBranch,event,createdAt,updatedAt"}, &rows)
+			"databaseId,name,displayTitle,status,conclusion,url,headBranch,event,createdAt,updatedAt"}, &rows)
 		if err != nil {
 			return lmcode.None(), err
 		}
 		out := RunList{}
 		for _, v := range rows {
 			out = append(out, &Run{
-				name: v.Name, displayTitle: v.DisplayTitle, status: v.Status, conclusion: v.Conclusion,
+				databaseID: v.DatabaseID,
+				name:       v.Name, displayTitle: v.DisplayTitle, status: v.Status, conclusion: v.Conclusion,
 				url: v.URL, branch: v.HeadBranch, event: v.Event, created: v.CreatedAt, updated: v.UpdatedAt,
 			})
 		}
 		h.runs = append(h.runs, out...)
 		return lmcode.Object("RunList", &out), nil
+	})
+	method("run_failed_log", []string{"string", "string", "int"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
+		log, err := h.runGhFailedLog(vstr(args[0]), vstr(args[1]), vint(args[2]))
+		if err != nil {
+			return lmcode.None(), err
+		}
+		return lmcode.String(log), nil
 	})
 
 	method("search_repos", []string{"string", "int"}, "RepoList", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {

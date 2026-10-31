@@ -54,6 +54,7 @@ type Release struct {
 }
 
 type Run struct {
+	databaseID                             int64
 	name, displayTitle, status, conclusion string
 	url, branch, event                     string
 	created, updated                       string
@@ -162,6 +163,7 @@ type ghRelease struct {
 }
 
 type ghRun struct {
+	DatabaseID   int64  `json:"databaseId"`
 	Name         string `json:"name"`
 	DisplayTitle string `json:"displayTitle"`
 	Status       string `json:"status"`
@@ -422,6 +424,7 @@ func (h *Host) registerRun() {
 		return func(v *Run) (lmcode.Value, error) { return lmcode.String(f(v)), nil }
 	}
 	reg("name", nil, "string", strField(func(v *Run) string { return v.name }))
+	reg("id", nil, "int", func(v *Run) (lmcode.Value, error) { return lmcode.Integer(v.databaseID), nil })
 	reg("display_title", nil, "string", strField(func(v *Run) string { return v.displayTitle }))
 	reg("status", nil, "string", strField(func(v *Run) string { return v.status }))
 	reg("conclusion", nil, "string", strField(func(v *Run) string { return v.conclusion }))

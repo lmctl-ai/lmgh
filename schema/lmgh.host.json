@@ -46,6 +46,9 @@
         "run_list": [
           { "params": ["string", "string", "int"], "returns": "RunList" }
         ],
+        "run_failed_log": [
+          { "params": ["string", "string", "int"], "returns": "string" }
+        ],
         "search_repos": [
           { "params": ["string", "int"], "returns": "RepoList" }
         ],
@@ -168,6 +171,7 @@
     },
     "Run": {
       "methods": {
+        "id": [ { "params": [], "returns": "int" } ],
         "name": [ { "params": [], "returns": "string" } ],
         "display_title": [ { "params": [], "returns": "string" } ],
         "status": [ { "params": [], "returns": "string" } ],
