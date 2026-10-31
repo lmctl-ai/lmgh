@@ -1,0 +1,17 @@
+# Find open pull requests updated before an explicit ISO cutoff (argv3).
+# Supplying the cutoff keeps date arithmetic in the invoking host and is auditable.
+out = ARGV.len() > 0 ? ARGV[0] : "build/stale-prs.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+cutoff = ARGV.len() > 3 ? ARGV[3] : "1970-01-01";
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let prs = gh.search_prs("repo:" + ${owner} + "/" + ${repo} + " is:pr is:open updated:<" + ${cutoff}, 100);
+for (i in range(0, prs.len())) {
+  let pr = prs.at(i);
+  print("STALE #" + str(pr.number()) + " " + pr.title() + " updated " + pr.updated_at());
+  report.add("stale-pr", ${owner} + "/" + ${repo}, "#" + str(pr.number()) + " " + pr.url());
+}
+report.write_text("build/stale-prs.txt");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

@@ -1,0 +1,19 @@
+# Audit repositories returned by the bounded owner search.
+out = ARGV.len() > 0 ? ARGV[0] : "build/repo-audit.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+query = "user:" + owner;
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let repos = gh.search_repos(${query}, 100);
+for (i in range(0, repos.len())) {
+  let r = repos.at(i);
+  if (r.is_archived()) {
+    print("ARCHIVED " + r.full_name());
+    report.add("archived-repo", r.full_name(), r.url());
+  }
+  if (r.is_private()) { print("PRIVATE " + r.full_name()); }
+}
+print("audited " + str(repos.len()) + " repositories for " + ${owner});
+report.write_text("build/repo-audit.txt");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

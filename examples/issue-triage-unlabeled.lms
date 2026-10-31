@@ -1,0 +1,17 @@
+# Report open issues with no labels, bounded to the first 100 results.
+out = ARGV.len() > 0 ? ARGV[0] : "build/issue-triage-unlabeled.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let issues = gh.issue_list(${owner}, ${repo}, "open", 100);
+for (i in range(0, issues.len())) {
+  let issue = issues.at(i);
+  if (issue.labels().len() == 0) {
+    print("UNLABELED #" + str(issue.number()) + " " + issue.title());
+    report.add("unlabeled-issue", ${owner} + "/" + ${repo}, "#" + str(issue.number()) + " " + issue.url());
+  }
+}
+report.write_json("build/issue-triage-unlabeled.json");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

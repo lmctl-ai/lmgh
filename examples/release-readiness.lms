@@ -1,0 +1,31 @@
+# Check the newest non-draft, non-prerelease release and its latest CI run.
+out = ARGV.len() > 0 ? ARGV[0] : "build/release-readiness.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let info = gh.repo_view(${owner}, ${repo});
+let releases = gh.release_list(${owner}, ${repo}, 30);
+let found = false;
+for (i in range(0, releases.len())) {
+  let rel = releases.at(i);
+  if (!found && !rel.is_draft() && !rel.is_prerelease()) {
+    found = true;
+    print("RELEASE " + rel.tag() + " " + rel.name());
+    report.add("release", ${owner} + "/" + ${repo}, rel.tag() + " " + rel.url());
+  }
+}
+if (!found) { report.add("release-missing", ${owner} + "/" + ${repo}, "no stable release"); }
+let runs = gh.run_list(${owner}, ${repo}, 100);
+let ci = false;
+for (i in range(0, runs.len())) {
+  let run = runs.at(i);
+  if (!ci && run.name() == "CI" && run.branch() == info.default_branch()) {
+    ci = true;
+    if (run.status() != "completed" || run.conclusion() != "success") { report.add("ci-not-green", ${owner} + "/" + ${repo}, run.url()); }
+  }
+}
+if (!ci) { report.add("ci-missing", ${owner} + "/" + ${repo}, "no latest CI run on default branch"); }
+report.write_text("build/release-readiness.txt");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

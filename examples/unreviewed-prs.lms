@@ -1,0 +1,18 @@
+# Find open PRs with no approving review decision.
+out = ARGV.len() > 0 ? ARGV[0] : "build/unreviewed-prs.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+let prs = gh.search_prs("repo:" + ${owner} + "/" + ${repo} + " is:pr is:open", 100);
+for (i in range(0, prs.len())) {
+  let pr = prs.at(i);
+  let triage = gh.pr_triage(${owner}, ${repo}, pr.number());
+  if (triage.review_decision() != "APPROVED") {
+    print("UNREVIEWED #" + str(pr.number()) + " " + pr.title() + " decision=" + triage.review_decision());
+    report.add("unreviewed-pr", ${owner} + "/" + ${repo}, "#" + str(pr.number()) + " " + pr.url());
+  }
+}
+report.write_json("build/unreviewed-prs.json");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);

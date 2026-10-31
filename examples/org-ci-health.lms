@@ -1,0 +1,28 @@
+# Check the newest run for each workflow on each repository's default branch.
+# argv: output, owner, comma-separated repositories (default demo).
+out = ARGV.len() > 0 ? ARGV[0] : "build/org-ci-health.dslb";
+owner = ARGV.len() > 1 ? ARGV[1] : "octo";
+repos = ARGV.len() > 2 ? ARGV[2] : "demo";
+p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+for (repo in str_split(${repos}, ",")) {
+  let info = gh.repo_view(${owner}, repo);
+  let runs = gh.run_list(${owner}, repo, 100);
+  for (i in range(0, runs.len())) {
+    let run = runs.at(i);
+    let newest = true;
+    for (j in range(0, i)) { if (runs.at(j).name() == run.name()) { newest = false; } }
+    if (newest && run.branch() == info.default_branch()) {
+      if (run.status() != "completed") {
+        print("PENDING " + ${owner} + "/" + repo + " " + run.name());
+        report.add("ci-pending", ${owner} + "/" + repo, run.name() + " " + run.url());
+      } else if (run.conclusion() != "success" && run.conclusion() != "skipped") {
+        print("BAD " + ${owner} + "/" + repo + " " + run.name() + " " + run.conclusion());
+        report.add("ci-failure", ${owner} + "/" + repo, run.name() + " " + run.url());
+      }
+    }
+  }
+}
+report.write_json("build/org-ci-health.json");
+report.fail_if_any();
+end _lmcode_
+savedsl(p, out);
