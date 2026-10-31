@@ -38,6 +38,29 @@ def main():
         return
 
     cmd = args[0]
+    recipes = os.environ.get("FAKE_GH_RECIPES") == "1"
+    scenario = os.environ.get("FAKE_GH_SCENARIO", "")
+    if scenario == "empty" and args[1:2] == ["list"]:
+        out("[]\n")
+        return
+    if recipes and args[:2] == ["repo", "view"] and args[2] == "octo/toolkit":
+        out(json.dumps({"name": "toolkit", "nameWithOwner": "octo/toolkit", "url": "https://github.com/octo/toolkit", "description": "", "defaultBranchRef": {"name": "main"}, "licenseInfo": None, "repositoryTopics": []}) + "\n")
+        return
+    if recipes and args[:2] == ["run", "list"] and "octo/toolkit" in args:
+        out(json.dumps([{"databaseId": 2001, "name": "build", "displayTitle": "broken main", "status": "completed", "conclusion": "failure", "headBranch": "main", "url": "https://github.com/octo/toolkit/actions/runs/2001"}]) + "\n")
+        return
+    if recipes and args[:2] == ["search", "repos"] and args[2] == "repo:octo/demo":
+        out(json.dumps([{"fullName": "octo/demo", "url": "https://github.com/octo/demo"}]) + "\n")
+        return
+    if recipes and args[:2] == ["issue", "list"]:
+        out(json.dumps([{"number": 14, "title": "Needs an owner", "state": "OPEN", "author": {"login": "bob"}, "labels": [], "url": "https://github.com/octo/demo/issues/14"}]) + "\n")
+        return
+    if recipes and args[:2] == ["search", "prs"]:
+        out(json.dumps([{"number": 22, "title": "WIP: dark mode", "state": "open", "isDraft": True, "author": {"login": "dave"}, "url": "https://github.com/octo/demo/pull/22", "updatedAt": "2020-01-01T00:00:00Z"}]) + "\n")
+        return
+    if recipes and args[:3] == ["pr", "view", "22"]:
+        out(json.dumps({"number": 22, "title": "WIP: dark mode", "state": "OPEN", "author": {"login": "dave"}, "url": "https://github.com/octo/demo/pull/22", "isDraft": True, "updatedAt": "2020-01-01T00:00:00Z", "mergeable": "CONFLICTING", "reviews": [], "reviewDecision": "REVIEW_REQUIRED", "statusCheckRollup": []}) + "\n")
+        return
 
     # every canned response below is for octo/demo; anything else is a miss
     if ("-R" in args and args[args.index("-R") + 1] != "octo/demo") or \
@@ -47,7 +70,7 @@ def main():
     if cmd == "repo" and args[1:2] == ["view"]:
         out(json.dumps({
             "name": "demo",
-            "fullName": "octo/demo",
+            "nameWithOwner": "octo/demo",
             "description": "Demo repository for lmgh tests",
             "url": "https://github.com/octo/demo",
             "homepageUrl": "https://octo.dev/demo",
@@ -189,9 +212,12 @@ def main():
         return
 
     if cmd == "run" and args[1:2] == ["view"] and "--log-failed" in args:
+        if scenario == "no-logs":
+            out("\n")
+            return
         if args[2] != "1001":
             fail("fake gh: failed log is only canned for run 1001")
-        out("linux\tTest\t2026-10-31T12:00:00Z\t##[error]expected 2 got 1\n"
+        out("linux\tTest\t2026-10-31T11:59:59Z\tshell: bash -e -o pipefail\nlinux\tTest\t2026-10-31T12:00:00Z\t##[error]expected 2 got 1\n"
             "linux\tTest\t2026-10-31T12:00:01Z\t##[error]expected 2 got 1\n"
             "windows\tBuild\t2026-10-31T12:00:02Z\terror: missing header\n"
             "windows\tBuild\t2026-10-31T12:00:03Z\terror: missing header\n")

@@ -82,7 +82,7 @@ type ghLabel struct {
 
 type ghRepoView struct {
 	Name             string `json:"name"`
-	FullName         string `json:"fullName"`
+	FullName         string `json:"nameWithOwner"`
 	Description      string `json:"description"`
 	URL              string `json:"url"`
 	Homepage         string `json:"homepageUrl"`
