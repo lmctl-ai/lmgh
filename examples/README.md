@@ -24,7 +24,7 @@ cache) because each recipe names it on the `_lmcode_` line:
 
 ```sh
 lmscript examples/open-prs.lms lmctl-ai lmgh   # compile to build/open-prs.dslb
-lmgh --dsl build/open-prs.dslb                 # run (gh auth as usual)
+lmgh --lmcode build/open-prs.dslb                 # run (gh auth as usual)
 ```
 
 If `lmgh` is already on `PATH`, the download is skipped and that binary is

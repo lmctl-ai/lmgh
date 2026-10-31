@@ -12,13 +12,8 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 # --- compiler ----------------------------------------------------------
 LMSCRIPT="${LMSCRIPT_BIN:-$(command -v lmscript || true)}"
 [ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl"
-ver=$("$LMSCRIPT" --version 2>/dev/null | awk '{print $2}')
-[ -n "$ver" ] || fail "cannot read lmscript version"
-python3 - "$ver" <<'PY' || fail "lmscript $ver < 0.2.420"
-import sys
-sys.exit(0 if tuple(int(p) for p in sys.argv[1].split(".")) >= (0, 2, 420) else 1)
-PY
-ok "compiler $LMSCRIPT ($ver)"
+LMSCRIPT="$(scripts/select-compiler.sh)" || fail "compiler capability probe"
+ok "compiler emitted v6 with implicit std"
 
 # --- upstream cli/cli pin ----------------------------------------------
 scripts/sync-cli.sh --verify 2>/dev/null || scripts/sync-cli.sh || fail "cannot sync third_party/cli"
@@ -28,6 +23,7 @@ ok "third_party/cli pinned by cli.lock"
 CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh . || fail "go build"
 HOST=build/lmgh
 ok "go build (CGO disabled)"
+python3 tests/check-host-flags.py schema/lmgh.dsl.json "$HOST" || fail "hard flag cutover"
 
 # fake gh on PATH for every run below
 mkdir -p build/fake-bin
@@ -41,8 +37,8 @@ export PATH="$PWD/build/fake-bin:$PWD/build:$PATH"
 # --- CLI protocol -------------------------------------------------------
 [ "$("$HOST" --version)" = "lmgh 0.2.2" ] || fail "--version"
 ok "--version"
-cmp -s <("$HOST" --dsl-schema) schema/lmgh.dsl.json || fail "--dsl-schema bytes differ from schema/lmgh.dsl.json"
-ok "--dsl-schema equals schema/lmgh.dsl.json"
+cmp -s <("$HOST" --lmcode-schema) schema/lmgh.dsl.json || fail "--lmcode-schema bytes differ from schema/lmgh.dsl.json"
+ok "--lmcode-schema equals schema/lmgh.dsl.json"
 set +e; out=$("$HOST" 2>&1); code=$?; set -e
 [ "$code" = 2 ] && [[ "$out" == *'CLI_USAGE'* ]] || fail "bad args refusal (exit $code)"
 set +e
@@ -52,8 +48,8 @@ set -e
 ok "usage errors exit 2 with CLI_USAGE JSON"
 
 # --- schema parity ------------------------------------------------------
-"$HOST" --dsl-signatures > build/host-signatures.txt
-"$LMSCRIPT" --dsl-signatures schema/lmgh.dsl.json > build/compiler-signatures.txt
+"$HOST" --lmcode-signatures > build/host-signatures.txt
+"$LMSCRIPT" --lmcode-signatures schema/lmgh.dsl.json > build/compiler-signatures.txt
 missing=$(python3 - <<'PY'
 host = set(open("build/host-signatures.txt").read().splitlines())
 print("\n".join(s for s in open("build/compiler-signatures.txt").read().splitlines() if s not in host))
@@ -64,7 +60,7 @@ ok "every compiler-visible signature binds in the host registry"
 python3 - <<'PY' || fail "host schema drifts from the registry"
 import json, subprocess
 schema = json.load(open("schema/lmgh.host.json"))
-sigs = set(subprocess.run(["build/lmgh", "--dsl-signatures"], capture_output=True, text=True).stdout.splitlines())
+sigs = set(subprocess.run(["build/lmgh", "--lmcode-signatures"], capture_output=True, text=True).stdout.splitlines())
 want = [f"context {n}: {t}" for n, t in schema["context"].items()]
 for fn, overloads in schema.get("functions", {}).items():
     for o in overloads:
@@ -85,9 +81,9 @@ rm -f pr-review-*.toml  # pr_prepare refuses to clobber; examples must start cle
 run_example() { # name [expected-exit]
   local name="$1" want="${2:-0}"
   "$LMSCRIPT" "examples/$name.lms" "build/$name.dslb" >/dev/null || fail "$name compile"
-  od -An -t u1 -j 5 -N 1 "build/$name.dslb" | grep -q 5 || fail "$name is not bytecode v5"
+  od -An -t u1 -j 5 -N 1 "build/$name.dslb" | grep -q 6 || fail "$name is not bytecode v6"
   set +e
-  "$HOST" --dsl "build/$name.dslb" > "build/$name.out" 2>&1
+  "$HOST" --lmcode "build/$name.dslb" > "build/$name.out" 2>&1
   local code=$?
   set -e
   [ "$code" = "$want" ] || fail "$name exit $code (want $want): $(cat build/$name.out)"
@@ -129,7 +125,7 @@ EOF2
 
 expect_run() { # name want-exit needle
   set +e
-  out=$("$HOST" --dsl "$WORK/$1.dslb" 2>&1); code=$?
+  out=$("$HOST" --lmcode "$WORK/$1.dslb" 2>&1); code=$?
   set -e
   [ "$code" = "$2" ] || fail "$1 exit $code (want $2): $out"
   [[ "$out" == *"$3"* ]] || fail "$1 output lacks '$3': $out"
@@ -150,7 +146,7 @@ expect_refusal bad-repo 'gh.issue_list("octo", "missing", "open", 10);' 'failed'
 # gh binary missing: LMGH_GH points nowhere (robust even when gh is installed)
 compile_chunk needs-gh 'gh.issue_list("octo", "demo", "open", 10);'
 set +e
-out=$(LMGH_GH="$WORK/no-such-gh" "$HOST" --dsl "$WORK/needs-gh.dslb" 2>&1); code=$?
+out=$(LMGH_GH="$WORK/no-such-gh" "$HOST" --lmcode "$WORK/needs-gh.dslb" 2>&1); code=$?
 set -e
 [ "$code" = 3 ] && [[ "$out" == *'missing gh executable'* ]] || fail "missing gh refusal (exit $code): $out"
 ok "missing gh binary refused"
@@ -193,7 +189,7 @@ expect_run pr-edit-prepare 0 '"ok": true'
 sed -i 's/Original title/Operator edited title/' pr-review-octo-demo.toml
 compile_chunk pr-edit-submit 'let pr = gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml"); print("#" + str(pr.number()));'
 set +e
-out=$(FAKE_GH_LOG="$WORK/gh-write.log" "$HOST" --dsl "$WORK/pr-edit-submit.dslb" 2>&1); code=$?
+out=$(FAKE_GH_LOG="$WORK/gh-write.log" "$HOST" --lmcode "$WORK/pr-edit-submit.dslb" 2>&1); code=$?
 set -e
 [ "$code" = 0 ] && [[ "$out" == *"#43"* ]] || fail "edited submit (exit $code): $out"
 grep -q 'Operator edited title' "$WORK/gh-write.log" || fail "edited title never reached gh: $(cat "$WORK/gh-write.log")"
@@ -221,13 +217,13 @@ expect_run app-fail 4 'APP_FAIL'
 # load failures
 printf 'not bytecode' > "$WORK/junk.dslb"
 set +e
-out=$("$HOST" --dsl "$WORK/junk.dslb" 2>&1); code=$?
+out=$("$HOST" --lmcode "$WORK/junk.dslb" 2>&1); code=$?
 set -e
 [ "$code" = 3 ] && [[ "$out" == *'LOAD_BAD_BYTECODE'* ]] || fail "junk bytecode (exit $code): $out"
 ok "bad bytecode refused at load"
 
 set +e
-out=$("$HOST" --dsl "$WORK/absent.dslb" 2>&1); code=$?
+out=$("$HOST" --lmcode "$WORK/absent.dslb" 2>&1); code=$?
 set -e
 [ "$code" = 4 ] && [[ "$out" == *'APP_FAIL'* ]] || fail "missing bytecode file (exit $code): $out"
 ok "missing bytecode file exits 4"

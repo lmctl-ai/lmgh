@@ -34,7 +34,7 @@ savedsl(p, out);
 
 ```sh
 lmscript open-prs.lms <owner> <repo>   # compiles AND fetches the lmgh host on first use
-lmgh --dsl build/open-prs.dslb         # or run it straight from the lmscript tool cache
+lmgh --lmcode build/open-prs.dslb         # or run it straight from the lmscript tool cache
 ```
 
 The only runtime requirement is the `gh` binary itself (version >= 2.45.0,
@@ -42,8 +42,8 @@ The only runtime requirement is the `gh` binary itself (version >= 2.45.0,
 `LMGH_GH` to point at a `gh` that is not on `PATH`.
 
 The schema ([`schema/lmgh.dsl.json`](schema/lmgh.dsl.json)) is the contract:
-`lmgh --dsl-schema` prints the exact embedded bytes and
-`lmgh --dsl-signatures` the host registry. Contexts: `gh: Gh` (the operation
+`lmgh --lmcode-schema` prints the exact embedded bytes and
+`lmgh --lmcode-signatures` the host registry. Contexts: `gh: Gh` (the operation
 catalog) and `report: Report` (findings log with `write_text`, `write_json`
 and `fail_if_any`, which fails with exit 4 / `APP_FAIL` when non-empty).
 
