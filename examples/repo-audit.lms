@@ -1,16 +1,18 @@
 # Audit repositories returned by the bounded owner search.
 out = ARGV.len() > 0 ? ARGV[0] : "build/repo-audit.dslb";
 owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-query = "user:" + owner;
+repo = ARGV.len() > 2 ? ARGV[2] : "";
+query = repo == "" ? "user:" + owner : "repo:" + owner + "/" + repo;
 p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
 let repos = gh.search_repos(${query}, 100);
 for (i in range(0, repos.len())) {
   let r = repos.at(i);
-  if (r.is_archived()) {
-    print("ARCHIVED " + r.full_name());
-    report.add("archived-repo", r.full_name(), r.url());
-  }
-  if (r.is_private()) { print("PRIVATE " + r.full_name()); }
+  let parts = str_split(r.full_name(), "/");
+  let detail = gh.repo_view(parts.at(0), parts.at(1));
+  if (detail.is_archived()) { print("ARCHIVED " + detail.full_name()); report.add("archived-repo", detail.full_name(), detail.url()); }
+  if (detail.license() == "") { print("NO LICENSE " + detail.full_name()); report.add("missing-license", detail.full_name(), detail.url()); }
+  if (detail.description() == "") { print("NO DESCRIPTION " + detail.full_name()); report.add("missing-description", detail.full_name(), detail.url()); }
+  if (detail.topics().len() == 0) { print("NO TOPICS " + detail.full_name()); report.add("missing-topics", detail.full_name(), detail.url()); }
 }
 print("audited " + str(repos.len()) + " repositories for " + ${owner});
 report.write_text("build/repo-audit.txt");

@@ -10,7 +10,7 @@ for (repo in str_split(${repos}, ",")) {
   for (i in range(0, runs.len())) {
     let run = runs.at(i);
     let newest = true;
-    for (j in range(0, i)) { if (runs.at(j).name() == run.name()) { newest = false; } }
+    for (j in range(0, i)) { if (runs.at(j).name() == run.name() && runs.at(j).branch() == info.default_branch()) { newest = false; } }
     if (newest && run.branch() == info.default_branch()) {
       if (run.status() != "completed") {
         print("PENDING " + ${owner} + "/" + repo + " " + run.name());
@@ -18,7 +18,11 @@ for (repo in str_split(${repos}, ",")) {
       } else if (run.conclusion() != "success" && run.conclusion() != "skipped") {
         print("BAD " + ${owner} + "/" + repo + " " + run.name() + " " + run.conclusion());
         report.add("ci-failure", ${owner} + "/" + repo, run.name() + " " + run.url());
-      }
+      } else { print("OK " + ${owner} + "/" + repo + " " + run.name() + " " + run.conclusion()); }
+    } else if (newest) {
+      let has_default = false;
+      for (j in range(0, runs.len())) { if (runs.at(j).name() == run.name() && runs.at(j).branch() == info.default_branch()) { has_default = true; } }
+      if (!has_default) { print("MISSING " + ${owner} + "/" + repo + " " + run.name()); report.add("ci-missing", ${owner} + "/" + repo, run.name()); }
     }
   }
 }
