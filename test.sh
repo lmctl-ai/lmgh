@@ -102,7 +102,8 @@ run_example release-notes
 run_example search-repos
 run_example create-issue
 run_example submit-pr
-rm -f pr-review-*.toml  # submit-pr leaves its review file behind
+run_example review-pr
+rm -f pr-review-*.toml  # submit-pr / review-pr leave their review files behind
 cmp -s build/repo-overview.txt tests/expected/repo-overview.txt || fail "repo-overview.txt drift"
 cmp -s build/open-prs.txt tests/expected/open-prs.txt || fail "open-prs.txt drift"
 cmp -s build/pr-triage.txt tests/expected/pr-triage.txt || fail "pr-triage.txt drift"
@@ -241,6 +242,168 @@ expect_run pr-submit-dry 0 'dry-run'
 grep -q 'dry-run: pr_submit: octo/demo: Gate check (feature-x -> main)' "$WORK/pr-dry-report.txt" || fail "dry-run pr_submit report entry"
 rm -f pr-review-octo-demo.toml
 ok "pr_submit honors dry_run"
+
+# human-in-the-loop PR review verdict flow: pr_review_prepare writes the
+# verdict TOML, the operator edits it, pr_review_submit drives gh pr review.
+compile_chunk pr-review-prepare 'print(gh.pr_review_prepare("octo", "demo", 21, "APPROVE", "Ship it\nChecked diff"));'
+expect_run pr-review-prepare 0 'pr-review-verdict-octo-demo-21.toml'
+grep -q "^owner = 'octo'$" pr-review-verdict-octo-demo-21.toml || fail "verdict file owner"
+grep -q "^repo = 'demo'$" pr-review-verdict-octo-demo-21.toml || fail "verdict file repo"
+grep -q '^number = 21$' pr-review-verdict-octo-demo-21.toml || fail "verdict file number"
+grep -q "^event = 'APPROVE'$" pr-review-verdict-octo-demo-21.toml || fail "verdict file event"
+grep -q 'Ship it\\nChecked diff' pr-review-verdict-octo-demo-21.toml || fail "verdict file body"
+ok "pr_review_prepare writes operator-reviewable verdict TOML"
+
+compile_chunk pr-review-prepare-twice 'gh.pr_review_prepare("octo", "demo", 21, "APPROVE", "ok");'
+expect_run pr-review-prepare-twice 3 'already exists'
+rm -f pr-review-verdict-octo-demo-21.toml
+
+# a dangling symlink at the verdict path must be refused via O_EXCL without creating its target
+rm -f "$WORK/dangling-target" pr-review-verdict-octo-demo-21.toml
+ln -s "$WORK/dangling-target" pr-review-verdict-octo-demo-21.toml
+expect_run pr-review-prepare-twice 3 'already exists'
+[ ! -e "$WORK/dangling-target" ] || fail "dangling symlink target was created"
+rm -f pr-review-verdict-octo-demo-21.toml
+ok "pr_review_prepare refuses dangling symlink without following it"
+
+expect_refusal pr-review-prepare-bad-ident 'gh.pr_review_prepare("octo/demo", "demo", 21, "APPROVE", "ok");' 'invalid owner'
+expect_refusal pr-review-prepare-bad-number 'gh.pr_review_prepare("octo", "demo", 0, "APPROVE", "ok");' 'invalid pull request number'
+expect_refusal pr-review-prepare-bad-event 'gh.pr_review_prepare("octo", "demo", 21, "LGTM", "ok");' 'invalid event'
+expect_refusal pr-review-prepare-empty-body-rc 'gh.pr_review_prepare("octo", "demo", 21, "REQUEST_CHANGES", "");' 'empty body'
+expect_refusal pr-review-prepare-empty-body-comment 'gh.pr_review_prepare("octo", "demo", 21, "COMMENT", "   ");' 'empty body'
+
+# issue #4: submit returns a Review whose url/id/state come from the review GitHub recorded
+compile_chunk pr-review-submit-live 'let path = gh.pr_review_prepare("octo", "demo", 21, "APPROVE", ""); let res = gh.pr_review_submit("octo", "demo", 21, path); print(res.summary() + " " + str(res.id()) + " " + res.state() + " " + res.url() + " " + str(res.confirmed()));'
+rm -f "$WORK/review-state"
+set +e
+out=$(FAKE_GH_STATE="$WORK/review-state" "$LMSCRIPT" "$WORK/pr-review-submit-live.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *'APPROVE octo/demo#21 200 APPROVED https://github.com/octo/demo/pull/21#pullrequestreview-200 true'* ]] || fail "pr-review-submit-live (exit $code): $out"
+ok "pr_review_submit returns the posted review's id, state and url"
+rm -f pr-review-verdict-octo-demo-21.toml
+
+# a second review by the same user must pick the new one (id 201), not the first
+rm -f "$WORK/review-state"; printf -- '--approve\n' > "$WORK/review-state"
+compile_chunk pr-review-submit-second 'let path = gh.pr_review_prepare("octo", "demo", 21, "COMMENT", "again"); let res = gh.pr_review_submit("octo", "demo", 21, path); print(str(res.id()) + " " + res.state());'
+set +e
+out=$(FAKE_GH_STATE="$WORK/review-state" "$LMSCRIPT" "$WORK/pr-review-submit-second.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *'201 COMMENTED'* ]] || fail "second review confirmation (exit $code): $out"
+ok "pr_review_submit confirms the newest review, not an earlier one"
+rm -f pr-review-verdict-octo-demo-21.toml
+
+# a failing confirmation lookup must not turn a posted review into an error
+rm -f "$WORK/review-state"
+set +e
+out=$(FAKE_GH_SCENARIO=no-review-lookup FAKE_GH_STATE="$WORK/review-state" FAKE_GH_LOG="$WORK/lookup-fail.log" "$LMSCRIPT" "$WORK/pr-review-submit-live.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *'APPROVE octo/demo#21 0   false'* ]] || fail "lookup failure should still succeed (exit $code): $out"
+grep -q '"--approve"' "$WORK/lookup-fail.log" || fail "review was not posted when lookup failed"
+ok "pr_review_submit reports success with confirmed() == false when the lookup fails"
+rm -f pr-review-verdict-octo-demo-21.toml
+
+# the operator edits verdict and body between prepare and submit; the edit flows through --body-file
+compile_chunk pr-review-edit-prepare 'gh.pr_review_prepare("octo", "demo", 21, "APPROVE", "Initial note");'
+expect_run pr-review-edit-prepare 0 ''
+sed -i 's/APPROVE/REQUEST_CHANGES/; s/Initial note/Needs a regression test/' pr-review-verdict-octo-demo-21.toml
+compile_chunk pr-review-edit-submit 'print(gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml").summary());'
+rm -f "$WORK/gh-review-write.log" "$WORK/review-state"
+set +e
+out=$(FAKE_GH_STATE="$WORK/review-state" FAKE_GH_LOG="$WORK/gh-review-write.log" "$LMSCRIPT" "$WORK/pr-review-edit-submit.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *"REQUEST_CHANGES octo/demo#21"* ]] || fail "edited review submit (exit $code): $out"
+python3 - "$WORK/gh-review-write.log" <<'PY' || fail "unexpected gh pr review argv: $(cat "$WORK/gh-review-write.log")"
+import json, os, sys
+lines = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8").read().splitlines()]
+assert len(lines) == 2, f"expected 2 log lines, got {len(lines)}"
+argv, body_entry = lines[0], lines[1]
+assert len(argv) == 8, f"expected 8 argv items, got {argv}"
+assert argv[:7] == ["pr", "review", "21", "-R", "octo/demo", "--request-changes", "--body-file"], f"bad argv prefix: {argv[:7]}"
+assert os.path.basename(argv[7]).startswith("lmgh-review-body-") and argv[7].endswith(".md"), f"bad temp path: {argv[7]}"
+assert not os.path.exists(argv[7]), f"temp body file was not cleaned up: {argv[7]}"
+assert body_entry == ["--body-file-content", "Needs a regression test"], f"bad body entry: {body_entry}"
+PY
+ok "operator verdict edit flows through exact gh pr review argv and --body-file"
+
+expect_refusal pr-review-submit-mismatch-repo 'gh.pr_review_submit("octo", "other", 21, "pr-review-verdict-octo-demo-21.toml");' 'review file is for'
+expect_refusal pr-review-submit-mismatch-num 'gh.pr_review_submit("octo", "demo", 22, "pr-review-verdict-octo-demo-21.toml");' 'review file is for'
+rm -f pr-review-verdict-octo-demo-21.toml
+
+# two-step examples/review-pr.lms flow: dry-run prepare -> operator edit -> --live submit
+rm -f "$WORK/gh-review-live-nodraft.log"
+set +e
+out=$(FAKE_GH_LOG="$WORK/gh-review-live-nodraft.log" "$LMSCRIPT" examples/review-pr.lms octo demo 21 APPROVE --live 2>&1); code=$?
+set -e
+[ "$code" = 3 ] && [[ "$out" == *'cannot read review file'* ]] || fail "review-pr --live without draft should fail (exit $code): $out"
+[ ! -s "$WORK/gh-review-live-nodraft.log" ] || fail "review-pr --live without draft invoked gh"
+ok "examples/review-pr.lms --live refuses when no draft exists"
+
+set +e
+out=$("$LMSCRIPT" examples/review-pr.lms octo demo 21 APPROVE --dry 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [ -f pr-review-verdict-octo-demo-21.toml ] || fail "review-pr step 1 dry prepare (exit $code): $out"
+sed -i 's/APPROVE/COMMENT/; s/Looks good to me./Two-step reviewed comment/' pr-review-verdict-octo-demo-21.toml
+rm -f "$WORK/gh-review-twostep.log" "$WORK/review-state"
+set +e
+out=$(FAKE_GH_STATE="$WORK/review-state" FAKE_GH_LOG="$WORK/gh-review-twostep.log" "$LMSCRIPT" examples/review-pr.lms octo demo 21 APPROVE --live 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *"submitted review: COMMENT octo/demo#21"* ]] && [[ "$out" == *"review 200 (COMMENTED): https://github.com/octo/demo/pull/21#pullrequestreview-200"* ]] || fail "review-pr step 2 live submit (exit $code): $out"
+python3 - "$WORK/gh-review-twostep.log" <<'PY' || fail "two-step gh argv mismatch: $(cat "$WORK/gh-review-twostep.log")"
+import json, sys
+lines = [json.loads(line) for line in open(sys.argv[1], encoding="utf-8").read().splitlines()]
+assert len(lines) == 2 and lines[0][:7] == ["pr", "review", "21", "-R", "octo/demo", "--comment", "--body-file"]
+assert lines[1] == ["--body-file-content", "Two-step reviewed comment"]
+PY
+rm -f pr-review-verdict-octo-demo-21.toml
+ok "examples/review-pr.lms two-step prepare -> edit -> --live submit"
+
+verdict() { printf "$1" > pr-review-verdict-octo-demo-21.toml; }
+verdict 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "SHIP_IT"\nbody = "x"\n'
+expect_refusal pr-review-submit-bad-event 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");' 'invalid event'
+verdict 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "approve"\nbody = "x"\n'
+expect_refusal pr-review-submit-lowercase-event 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");' 'invalid event'
+verdict 'owner = "octo"\nrepo = "demo"\nnumber = 0\nevent = "APPROVE"\nbody = "x"\n'
+expect_refusal pr-review-submit-zero-number 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");' 'invalid pull request number'
+verdict 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "COMMENT"\nbody = ""\n'
+expect_refusal pr-review-submit-empty-body 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");' 'empty body'
+verdict 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "APPROVE"\nbody = "ok"\nextra = 1\n'
+expect_refusal pr-review-submit-unknown-field 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");' 'invalid TOML'
+
+# case-variant duplicate key, wrong-case key or missing key must be refused without calling gh
+expect_key_refusal() { # label file-content needle
+  verdict "$2"
+  compile_chunk "$1" 'gh.pr_review_submit("octo", "demo", 21, "pr-review-verdict-octo-demo-21.toml");'
+  rm -f "$WORK/gh-keys.log"
+  set +e
+  out=$(FAKE_GH_LOG="$WORK/gh-keys.log" "$LMSCRIPT" "$WORK/$1.lms" 2>&1); code=$?
+  set -e
+  [ "$code" = 3 ] && [[ "$out" == *"$3"* ]] || fail "$1 not refused (exit $code): $out"
+  [ ! -s "$WORK/gh-keys.log" ] || fail "$1 invoked gh: $(cat "$WORK/gh-keys.log")"
+  ok "$1 refused without calling gh"
+}
+expect_key_refusal verdict-case-duplicate 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "REQUEST_CHANGES"\nEvent = "APPROVE"\nbody = "Needs work"\n' "unknown or non-canonical key 'Event'"
+expect_key_refusal verdict-wrong-case 'owner = "octo"\nrepo = "demo"\nnumber = 21\nEvent = "APPROVE"\nbody = "ok"\n' "unknown or non-canonical key 'Event'"
+expect_key_refusal verdict-missing-body 'owner = "octo"\nrepo = "demo"\nnumber = 21\nevent = "APPROVE"\n' "missing required key 'body'"
+
+# issue #2: pr_submit's review file gets the same exact-case key check
+rm -f pr-review-verdict-octo-demo-21.toml
+printf "owner = 'octo'\nrepo = 'demo'\ntitle = 'Original title'\nTitle = 'Overridden title'\nbase = 'main'\nhead = 'feat'\ndraft = false\nbody = 'x'\n" > pr-review-octo-demo.toml
+compile_chunk submit-case-duplicate 'gh.dry_run(true); print(gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml").title());'
+expect_run submit-case-duplicate 3 "unknown or non-canonical key 'Title'"
+printf "owner = 'octo'\nrepo = 'demo'\nTITLE = 'Shouted'\nbase = 'main'\nhead = 'feat'\n" > pr-review-octo-demo.toml
+compile_chunk submit-case-only 'gh.dry_run(true); gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml");'
+expect_run submit-case-only 3 "unknown or non-canonical key 'TITLE'"
+rm -f pr-review-octo-demo.toml
+ok "pr_submit refuses case-variant keys instead of letting a later one win"
+
+expect_refusal pr-review-submit-missing 'gh.pr_review_submit("octo", "demo", 21, "no-such-verdict.toml");' 'cannot read review file'
+rm -f pr-review-verdict-octo-demo-21.toml
+
+compile_chunk pr-review-submit-dry 'gh.dry_run(true); let path = gh.pr_review_prepare("octo", "demo", 21, "COMMENT", "Nit on line 10"); let res = gh.pr_review_submit("octo", "demo", 21, path); print(res.summary() + " " + res.state() + " " + str(res.confirmed())); report.write_text("build/test-chunks/pr-review-dry-report.txt");'
+expect_run pr-review-submit-dry 0 'dry-run: gh pr review 21 -R octo/demo --comment dry-run false'
+grep -q 'dry-run: pr_review_submit: octo/demo #21 (COMMENT)' "$WORK/pr-review-dry-report.txt" || fail "dry-run pr_review_submit report entry"
+rm -f pr-review-verdict-octo-demo-21.toml
+ok "pr_review_submit honors dry_run"
 
 compile_chunk app-fail 'report.add("test", "subject", "intentional"); report.fail_if_any();'
 expect_run app-fail 4 'APP_FAIL'

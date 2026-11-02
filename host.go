@@ -35,6 +35,7 @@ type Host struct {
 	prs      []*Pr
 	triages  []*Triage
 	releases []*Release
+	reviews  []*Review
 	runs     []*Run
 	strings  []*Strings
 	report   *Report
@@ -74,6 +75,7 @@ func NewHost() *Host {
 	h.registerTriage()
 	h.registerRelease()
 	h.registerReleaseList()
+	h.registerReview()
 	h.registerRun()
 	h.registerRunList()
 	h.registerReport()

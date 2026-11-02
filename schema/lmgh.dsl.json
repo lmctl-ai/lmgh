@@ -37,6 +37,12 @@
         "pr_submit": [
           { "params": ["string", "string", "string"], "returns": "Pr" }
         ],
+        "pr_review_prepare": [
+          { "params": ["string", "string", "int", "string", "string"], "returns": "string" }
+        ],
+        "pr_review_submit": [
+          { "params": ["string", "string", "int", "string"], "returns": "Review" }
+        ],
         "pr_merge": [
           { "params": ["string", "string", "int", "string"], "returns": "string" }
         ],
@@ -200,6 +206,15 @@
         "len": [ { "params": [], "returns": "int" } ],
         "at": [ { "params": ["int"], "returns": "Run" } ],
         "failing": [ { "params": [], "returns": "RunList" } ]
+      }
+    },
+    "Review": {
+      "methods": {
+        "id": [ { "params": [], "returns": "int" } ],
+        "url": [ { "params": [], "returns": "string" } ],
+        "state": [ { "params": [], "returns": "string" } ],
+        "summary": [ { "params": [], "returns": "string" } ],
+        "confirmed": [ { "params": [], "returns": "bool" } ]
       }
     },
     "Report": {

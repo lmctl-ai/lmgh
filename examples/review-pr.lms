@@ -1,0 +1,33 @@
+# Human-in-the-loop PR review submission. pr_review_prepare writes a verdict
+# TOML for the operator to edit; pr_review_submit posts only that reviewed
+# file's contents. Nothing reaches GitHub until the operator approves and the
+# script submits.
+# Run:    lmscript examples/review-pr.lms <owner> <repo> <number> [event] [--dry]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 21;
+event = ARGV.len() > 3 ? ARGV[3] : "APPROVE";
+dry = ARGV.len() > 4 ? ARGV[4] == "--dry" : true;
+
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+if (gh.is_dry_run()) {
+  gh.pr_review_prepare(${owner}, ${repo}, ${number}, ${event}, "Looks good to me.");
+  print("review verdict file ready for " + ${owner} + "/" + ${repo} + "#" + str(${number}) + ": " + ${event});
+  print("operator edits the TOML, then re-runs with --live to submit");
+} else {
+  let path = "pr-review-verdict-" + ${owner} + "-" + ${repo} + "-" + str(${number}) + ".toml";
+  let res = gh.pr_review_submit(${owner}, ${repo}, ${number}, path);
+  print("submitted review: " + res.summary());
+  if (res.confirmed()) {
+    print("review " + str(res.id()) + " (" + res.state() + "): " + res.url());
+  } else {
+    print("review posted; confirmation lookup failed");
+  }
+}
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

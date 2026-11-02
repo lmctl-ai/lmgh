@@ -85,12 +85,26 @@ empty title, or a repository mismatch are refused) and runs `gh pr create`
 from it. Nothing reaches GitHub between prepare and submit; `pr_submit` also
 honors `gh.dry_run(bool)`. See [`examples/submit-pr.lms`](examples/submit-pr.lms).
 
+Human-in-the-loop PR reviews: `pr_review_prepare(owner, repo, number, event, body)`
+writes `pr-review-verdict-<owner>-<repo>-<number>.toml` with `event` set to
+`APPROVE`, `REQUEST_CHANGES`, or `COMMENT` (refusing an empty body for
+`REQUEST_CHANGES` and `COMMENT`, and refusing to overwrite an existing file).
+`pr_review_submit(owner, repo, number, path)` strict-decodes that file,
+verifies `owner`/`repo`/`number` and `event`, and runs `gh pr review` with
+`--body-file`, honoring `gh.dry_run(bool)`, and returns a `Review` whose `url()`,
+`id()` and `state()` come from the review GitHub recorded (`confirmed()` is false,
+with the review still posted, if that lookup fails; `summary()` keeps the echo or
+dry-run intent). See [`examples/review-pr.lms`](examples/review-pr.lms).
+
+Hand-edited review files are checked for exact-case keys: a key such as `Title`
+after `title` is refused rather than silently overriding the value the operator read.
+
 ## Develop
 
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 51 checks, including 14 offline recipe scenarios
+./test.sh                  # 85 checks, including 14 offline recipe scenarios
 ```
 
 Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`

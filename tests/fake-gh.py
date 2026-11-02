@@ -175,6 +175,50 @@ def main():
         out("https://github.com/octo/demo/pull/21\n")
         return
 
+    if cmd == "pr" and args[1:2] == ["review"]:
+        int(args[2])
+        if "-R" not in args or args.index("-R") + 1 >= len(args) or "/" not in args[args.index("-R") + 1]:
+            fail("gh pr review requires -R owner/repo")
+        flags = [f for f in ("--approve", "--request-changes", "--comment") if f in args]
+        if len(flags) != 1:
+            fail("need exactly one of --approve, --request-changes, or --comment")
+        if "--body-file" not in args or args.index("--body-file") + 1 >= len(args):
+            fail("gh pr review requires --body-file")
+        bf = args[args.index("--body-file") + 1]
+        with open(bf, "r", encoding="utf-8") as f:
+            body = f.read()
+        if flags[0] in ("--request-changes", "--comment") and not body:
+            fail("body cannot be blank for %s review" % flags[0].lstrip("-"))
+        log_argv(args)
+        log_argv(["--body-file-content", body])
+        state = os.environ.get("FAKE_GH_STATE")
+        if state:
+            with open(state, "a") as f:
+                f.write(flags[0] + "\n")
+        return
+
+    if args[:2] == ["api", "user"]:
+        out("tester\n")
+        return
+
+    if cmd == "api" and "--paginate" in args and args[-2:-1] == ["--jq"] and args[args.index("--paginate") + 1].endswith("/reviews"):
+        if os.environ.get("FAKE_GH_SCENARIO") == "no-review-lookup":
+            fail("fake gh: review listing unavailable")
+        number = args[args.index("--paginate") + 1].split("/")[-2]
+        base = "https://github.com/octo/demo/pull/" + number + "#pullrequestreview-"
+        rows = [
+            {"id": 100, "html_url": base + "100", "state": "APPROVED", "login": "tester"},
+            {"id": 150, "html_url": base + "150", "state": "COMMENTED", "login": "someone-else"},
+        ]
+        state = os.environ.get("FAKE_GH_STATE")
+        if state and os.path.exists(state):
+            names = {"--approve": "APPROVED", "--request-changes": "CHANGES_REQUESTED", "--comment": "COMMENTED"}
+            for i, flag in enumerate(open(state).read().split()):
+                rid = 200 + i
+                rows.append({"id": rid, "html_url": base + str(rid), "state": names[flag], "login": "tester"})
+        out("".join(json.dumps(r) + "\n" for r in rows))
+        return
+
     if cmd == "release" and args[1:2] == ["list"]:
         out(json.dumps([
             {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -259,6 +260,96 @@ func (h *Host) registerGh() {
 			return lmcode.None(), err
 		}
 		return lmcode.Object("Pr", v), nil
+	})
+
+	method("pr_review_prepare", []string{"string", "string", "int", "string", "string"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
+		owner, repo := vstr(args[0]), vstr(args[1])
+		number := vint(args[2])
+		event, body := vstr(args[3]), vstr(args[4])
+		for _, id := range [][2]string{{"owner", owner}, {"repo", repo}} {
+			if err := checkIdent(id[0], id[1]); err != nil {
+				return lmcode.None(), lmcode.NewHostError("pr_review_prepare: " + err.Error())
+			}
+		}
+		if number < 1 {
+			return lmcode.None(), lmcode.NewHostError(fmt.Sprintf("pr_review_prepare: invalid pull request number %d", number))
+		}
+		if _, err := reviewEventFlag(event, body); err != nil {
+			return lmcode.None(), lmcode.NewHostError("pr_review_prepare: " + err.Error())
+		}
+		path, err := writeReviewVerdict(&prReviewVerdict{Owner: owner, Repo: repo, Number: number, Event: event, Body: body})
+		if err != nil {
+			return lmcode.None(), err
+		}
+		return lmcode.String(path), nil
+	})
+
+	method("pr_review_submit", []string{"string", "string", "int", "string"}, "Review", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
+		owner, repo := vstr(args[0]), vstr(args[1])
+		number := vint(args[2])
+		path := vstr(args[3])
+		for _, id := range [][2]string{{"owner", owner}, {"repo", repo}} {
+			if err := checkIdent(id[0], id[1]); err != nil {
+				return lmcode.None(), lmcode.NewHostError("pr_review_submit: " + err.Error())
+			}
+		}
+		if number < 1 {
+			return lmcode.None(), lmcode.NewHostError(fmt.Sprintf("pr_review_submit: invalid pull request number %d", number))
+		}
+		r, err := readReviewVerdict(path)
+		if err != nil {
+			return lmcode.None(), err
+		}
+		if err := r.expectPR(owner, repo, number); err != nil {
+			return lmcode.None(), err
+		}
+		flag, err := reviewEventFlag(r.Event, r.Body)
+		if err != nil {
+			return lmcode.None(), lmcode.NewHostError("pr_review_submit: " + err.Error())
+		}
+		numStr := strconv.FormatInt(number, 10)
+		if h.dryRun {
+			h.report.add("dry-run", "pr_review_submit", owner+"/"+repo+" #"+numStr+" ("+r.Event+")")
+			rv := &Review{state: "dry-run", summary: "dry-run: gh pr review " + numStr + " -R " + owner + "/" + repo + " " + flag}
+			h.reviews = append(h.reviews, rv)
+			return lmcode.Object("Review", rv), nil
+		}
+		tmp, err := os.CreateTemp("", "lmgh-review-body-*.md")
+		if err != nil {
+			return lmcode.None(), lmcode.NewHostError("pr_review_submit: cannot create temp body file: " + err.Error())
+		}
+		tmpPath := tmp.Name()
+		defer os.Remove(tmpPath)
+		if _, err := tmp.WriteString(r.Body); err != nil {
+			_ = tmp.Close()
+			return lmcode.None(), lmcode.NewHostError("pr_review_submit: cannot write temp body file: " + err.Error())
+		}
+		if err := tmp.Close(); err != nil {
+			return lmcode.None(), lmcode.NewHostError("pr_review_submit: cannot close temp body file: " + err.Error())
+		}
+		// Remember the newest existing review of ours so the confirmation
+		// lookup can tell the one just posted from earlier ones. A failed
+		// lookup here only weakens the match; it never blocks the submission.
+		var floor int64
+		if before, lerr := h.myReviews(owner, repo, number); lerr == nil {
+			floor = maxReviewID(before)
+		}
+		argv := []string{"pr", "review", numStr, "-R", owner + "/" + repo, flag, "--body-file", tmpPath}
+		out, err := h.runGh(argv...)
+		if err != nil {
+			return lmcode.None(), err
+		}
+		rv := &Review{summary: strings.TrimSpace(out)}
+		if rv.summary == "" {
+			rv.summary = fmt.Sprintf("%s %s/%s#%d", r.Event, owner, repo, number)
+		}
+		if after, lerr := h.myReviews(owner, repo, number); lerr == nil {
+			if got, ok := newestAfter(after, floor); ok {
+				rv.id, rv.url, rv.state, rv.confirmed = got.ID, got.URL, got.State, true
+			}
+		}
+		h.reviews = append(h.reviews, rv)
+		return lmcode.Object("Review", rv), nil
 	})
 
 	method("pr_merge", []string{"string", "string", "int", "string"}, "string", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {

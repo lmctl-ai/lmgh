@@ -20,9 +20,9 @@ instead of ad-hoc argv strings.
 
 - v0 covers read ops for repos, issues, PRs, releases, workflow runs and
   search, plus write ops (`issue_create`, `pr_merge`) behind a dry-run flag,
-  and a human-in-the-loop PR flow (`pr_prepare` writes an operator-reviewed
-  TOML, `pr_submit` pushes only that file's contents). No GraphQL passthrough,
-  no comment/review/label mutations.
+  and human-in-the-loop TOML flows for PR creation (`pr_prepare`/`pr_submit`)
+  and PR review submission (`pr_review_prepare`/`pr_review_submit`). No GraphQL
+  passthrough, no label mutations or inline diff-comment threads.
 - The host never prompts; anything `gh` would ask about is an error.
 - `gh` version must parse as >= 2.45.0 < 3.0.0 or every op refuses.
 

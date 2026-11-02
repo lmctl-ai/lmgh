@@ -9,7 +9,8 @@ Candidate work after v0, in no fixed order.
   host `ApiResult` type with `get`/`at` navigation.
 - Done on the working branch: `issue_close`, `pr_comment`, `label_add`,
   `release_create` (writes.go; dry-run aware, argv pinned by Go tests).
-  Remaining gh2 catalog candidates: reviews, label removal, issue edit.
+  Summary-level PR reviews are covered by `pr_review_prepare`/`pr_review_submit`.
+  Remaining candidates: inline/line-level review comments, label removal, issue edit.
 - `pr_triage` additions when gh exposes them: unresolved review threads
   (needs `reviewThreads`, absent from gh v2.103.3).
 - Pagination beyond `--limit` (cursors via `gh api`).

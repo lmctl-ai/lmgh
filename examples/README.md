@@ -22,7 +22,7 @@ repository with arguments; runs use the ambient `gh` authentication.
 | [release-readiness.lms](release-readiness.lms) | Latest stable release and latest observed default-branch CI per workflow | read | `<owner> <repo>` |
 | [issue-triage-unlabeled.lms](issue-triage-unlabeled.lms) | Open issues needing labels | read | `<owner> <repo>` |
 | [repo-audit.lms](repo-audit.lms) | Missing license, description and topics across an owner's repositories | read | `<owner> [repo]` |
-
+| [review-pr.lms](review-pr.lms) | Human-in-the-loop PR review: writes a verdict TOML (`APPROVE`/`REQUEST_CHANGES`/`COMMENT`), submits only on approval | write | `<owner> <repo> <number> [event] [--dry]` |
 
 ## Running
 
