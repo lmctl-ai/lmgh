@@ -1,11 +1,9 @@
 # Explain recent failed runs: first recognized error per failed job, with links.
-# Requires lmgh >= 0.2.3 (unreleased; build main until the owner releases it).
-# Args: output.dslb owner repo [run-limit=5]. This includes historical failures.
-out = ARGV.len() > 0 ? ARGV[0] : "build/ci-errors.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
-limit = ARGV.len() > 3 ? num(ARGV[3]) : 5;
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+# Args: owner repo [run-limit=5]. This includes historical failures.
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+limit = ARGV.len() > 2 ? num(ARGV[2]) : 5;
+p = _lmcode_ cli="lmgh";
 let runs = gh.run_list(${owner}, ${repo}, ${limit});
 let failing = runs.failing();
 for (run in failing) {
@@ -41,4 +39,8 @@ print("failed runs: " + str(failing.len()) + " / " + str(runs.len()) + " recent 
 report.write_json("build/ci-errors.json");
 report.fail_if_any();
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

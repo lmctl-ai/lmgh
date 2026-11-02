@@ -1,11 +1,10 @@
 # Open PRs inactive for N days (default 30), with draft/conflict findings.
-# Args: output.dslb owner repo [days=30]; age is evaluated when compiling.
-out = ARGV.len() > 0 ? ARGV[0] : "build/stale-prs.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
-days = ARGV.len() > 3 ? num(ARGV[3]) : 30;
+# Args: owner repo [days=30]; the cutoff is evaluated when the script starts.
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+days = ARGV.len() > 2 ? num(ARGV[2]) : 30;
 cutoff = strftime(now() - days * 86400000, "%Y-%m-%d");
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let prs = gh.search_prs("repo:" + ${owner} + "/" + ${repo} + " is:pr is:open updated:<" + ${cutoff}, 100);
 for (i in range(0, prs.len())) {
   let pr = prs.at(i);
@@ -18,4 +17,8 @@ for (i in range(0, prs.len())) {
 report.write_text("build/stale-prs.txt");
 report.fail_if_any();
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

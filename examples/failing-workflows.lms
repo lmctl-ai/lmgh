@@ -1,10 +1,9 @@
 # Lists recent failing workflow runs and fails (exit 4) if any are found.
 # Run:    lmscript examples/failing-workflows.lms <owner> <repo>
-out = ARGV.len() > 0 ? ARGV[0] : "build/failing-workflows.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
 
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let runs = gh.run_list(${owner}, ${repo}, 20);
 let failing = runs.failing();
 for (i in range(0, failing.len())) {
@@ -15,4 +14,8 @@ for (i in range(0, failing.len())) {
 print("failing runs: " + str(failing.len()) + " of " + str(runs.len()) + " checked");
 report.fail_if_any();
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

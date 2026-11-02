@@ -1,11 +1,10 @@
 # Triage digest for one pull request: checks, reviews and mergeability.
 # Run:    lmscript examples/pr-triage.lms <owner> <repo> <number>
-out = ARGV.len() > 0 ? ARGV[0] : "build/pr-triage.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
-number = ARGV.len() > 3 ? num(ARGV[3]) : 21;
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 21;
 
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let t = gh.pr_triage(${owner}, ${repo}, ${number});
 print("#" + str(t.number()) + ": " + t.title());
 print(t.summary());
@@ -17,4 +16,8 @@ if (t.ok()) {
 }
 report.write_text("build/pr-triage.txt");
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

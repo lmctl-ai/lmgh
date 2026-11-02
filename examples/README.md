@@ -26,47 +26,36 @@ repository with arguments; runs use the ambient `gh` authentication.
 
 ## Running
 
-Nothing to install: on first compile, `lmscript` downloads the released lmgh
-host for your platform (SHA-256 verified, cached under the lmscript tool
-cache) because each recipe names it on the `_lmcode_` line:
+Each recipe is a complete script: it builds an `_lmcode_` program against the
+lmgh host and executes it with `run_lmcode`. Nothing to compile separately:
 
 ```sh
-mkdir -p build
-lmscript examples/open-prs.lms build/open-prs.dslb lmctl-ai lmgh
-lmgh --lmcode build/open-prs.dslb                 # run (gh auth as usual)
+lmscript examples/open-prs.lms lmctl-ai lmgh     # gh auth as usual
 ```
 
-If `lmgh` is already on `PATH`, the download is skipped and that binary is
-used. Runtime requirement: `gh` >= 2.45.0 with its own auth.
+`lmgh` must be discoverable (on `PATH`, or installed with
+`lmscript install github:lmctl-ai/lmgh`). Runtime requirement: `gh` >= 2.45.0
+with its own auth.
 
-`./test.sh` compiles every example, runs it against the canned `gh` double in
+`./test.sh` runs every example against the canned `gh` double in
 [tests/fake-gh.py](../tests/fake-gh.py), and diffs stdout and report files
 against [tests/expected/](../tests/expected/).
 
 ## Task recipes
 
-The first command-line argument is always the output bytecode path; owner/repo
-follow it. The default is `octo/demo`; `repo-audit` defaults to all repositories
-returned by `user:octo` (or restrict it with a repository argument).
+Arguments are `<owner> <repo> [extra]`, defaulting to `octo/demo`; `repo-audit`
+defaults to all repositories returned by `user:octo` (or restrict it with a
+repository argument).
 
 ```sh
 mkdir -p build
-lmscript examples/ci-errors.lms build/ci-errors.dslb lmctl-ai lmgcp 5
-lmgh --lmcode build/ci-errors.dslb
-lmscript examples/org-ci-health.lms build/org-ci-health.dslb lmctl-ai lmgh,lmgcp
-lmgh --lmcode build/org-ci-health.dslb
-lmscript examples/stale-prs.lms build/stale-prs.dslb octo demo 30
-lmgh --lmcode build/stale-prs.dslb
+lmscript examples/ci-errors.lms lmctl-ai lmgcp 5
+lmscript examples/org-ci-health.lms lmctl-ai lmgh,lmgcp
+lmscript examples/stale-prs.lms octo demo 30
 ```
 
-`ci-errors` requires **lmgh 0.2.3 or later (not released yet)** for `Run.id()` and
-`Gh.run_failed_log()`. Until the owner releases it, build main and put `build/`
-on PATH when compiling; the embedded schema must match the binary used to run.
-The other six new recipes use existing 0.2.2 operations. A compatible lmscript
-compiler must support implicit std and `_lmcode_` blocks (see `scripts/select-compiler.sh`).
-
-Each recipe writes `build/NAME.txt` or `.json` before `report.fail_if_any()`:
-exit 0 means no findings, exit 4 means findings, and exit 3 means an incomplete
+Each recipe writes `build/NAME.txt` or `.json` before `report.fail_if_any()`;
+the script then exits with the host outcome: exit 0 means no findings, exit 4 means findings, and exit 3 means an incomplete
 scan due to a host/API/log error. `ci-errors` includes historical failed runs
 within its requested window; a newer green run does not erase earlier failures.
 Log matching is heuristic, so jobs without recognized errors link back to their
@@ -77,8 +66,7 @@ repository data, so inspect before sharing.
 Search/list scans are bounded (100 PRs/issues/repos/runs; 30 releases); results
 are the latest **observed** runs, not a guarantee that all required workflows ran
 on the latest commit. `release-readiness` is a review aid, not permission to
-release. `stale-prs` uses an inactivity cutoff calculated at compile time; recompile
-each tick. Org CI accepts a comma-separated repository list, not an unbounded org scan.
+release. `stale-prs` computes its inactivity cutoff when the script starts. Org CI accepts a comma-separated repository list, not an unbounded org scan.
 
 `./test.sh` covers every recipe with 14 offline scenarios, pinned stdout AND
 report bytes, including a clean release, missing CI, missing logs, multiple

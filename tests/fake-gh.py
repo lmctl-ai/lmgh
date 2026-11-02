@@ -267,6 +267,11 @@ def main():
         ]) + "\n")
         return
 
+    if args[:2] in (["issue", "close"], ["pr", "comment"], ["release", "create"]) or args[:3] == ["api", "--method", "POST"]:
+        log_argv(args)
+        out("ok " + " ".join(args[:2]) + "\n")
+        return
+
     if cmd == "api":
         path = args[1]
         if path.startswith("repos/octo/demo/contents/"):

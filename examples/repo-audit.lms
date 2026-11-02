@@ -1,9 +1,8 @@
 # Audit repositories returned by the bounded owner search.
-out = ARGV.len() > 0 ? ARGV[0] : "build/repo-audit.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "";
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "";
 query = repo == "" ? "user:" + owner : "repo:" + owner + "/" + repo;
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let repos = gh.search_repos(${query}, 100);
 for (i in range(0, repos.len())) {
   let r = repos.at(i);
@@ -18,4 +17,8 @@ print("audited " + str(repos.len()) + " repositories for " + ${owner});
 report.write_text("build/repo-audit.txt");
 report.fail_if_any();
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

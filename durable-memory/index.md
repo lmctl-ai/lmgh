@@ -7,7 +7,7 @@ chapters relevant to the task.
 
 A Go [lmcode](../go.mod) host that turns the GitHub CLI (`gh`) into a
 scriptable, schema-checked API for LMScript: `.lms` source compiles against
-`schema/lmgh.dsl.json` into DSL bytecode; the `lmgh` binary executes it by
+`schema/lmgh.dsl.json` into bytecode; the `lmgh` binary executes it by
 driving `gh` over argv (prompts disabled) and returns typed domain objects.
 The repository is the lmctl-ai fork of `cli/cli` — upstream is vendored in
 `third_party/cli` and pinned by `cli.lock`. This session (2026-10-26)
@@ -19,7 +19,7 @@ preserved in git; catalog knowledge migrated into the Go host).
 ```sh
 scripts/sync-cli.sh   # fetch the pinned cli/cli checkout
 go build -o build/lmgh .
-./test.sh             # 44 checks: build, parity, examples vs fake gh, refusals
+./test.sh             # 51 checks: build, parity, examples vs fake gh, refusals
 ```
 
 ## Document map

@@ -84,10 +84,8 @@ ok "every host schema signature is registered"
 rm -f pr-review-*.toml  # pr_prepare refuses to clobber; examples must start clean
 run_example() { # name [expected-exit]
   local name="$1" want="${2:-0}"
-  "$LMSCRIPT" "examples/$name.lms" "build/$name.dslb" >/dev/null || fail "$name compile"
-  od -An -t u1 -j 5 -N 1 "build/$name.dslb" | grep -q 6 || fail "$name is not bytecode v6"
   set +e
-  "$HOST" --lmcode "build/$name.dslb" > "build/$name.out" 2>&1
+  "$LMSCRIPT" "examples/$name.lms" > "build/$name.out" 2>&1
   local code=$?
   set -e
   [ "$code" = "$want" ] || fail "$name exit $code (want $want): $(cat build/$name.out)"
@@ -117,19 +115,22 @@ ok "example report files match"
 # --- behavioral chunks ---------------------------------------------------
 WORK=build/test-chunks
 rm -rf "$WORK"; mkdir -p "$WORK"
-compile_chunk() { # name body
+compile_chunk() { # name body  (a chunk is a complete script run by lmscript)
   cat > "$WORK/$1.lms" <<EOF2
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 $2
 end _lmcode_
-savedsl(p, "$WORK/$1.dslb");
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}
 EOF2
-  "$LMSCRIPT" "$WORK/$1.lms" >/dev/null || fail "$1 compile"
 }
 
 expect_run() { # name want-exit needle
   set +e
-  out=$("$HOST" --lmcode "$WORK/$1.dslb" 2>&1); code=$?
+  out=$("$LMSCRIPT" "$WORK/$1.lms" 2>&1); code=$?
   set -e
   [ "$code" = "$2" ] || fail "$1 exit $code (want $2): $out"
   [[ "$out" == *"$3"* ]] || fail "$1 output lacks '$3': $out"
@@ -150,7 +151,7 @@ expect_refusal bad-repo 'gh.issue_list("octo", "missing", "open", 10);' 'failed'
 # gh binary missing: LMGH_GH points nowhere (robust even when gh is installed)
 compile_chunk needs-gh 'gh.issue_list("octo", "demo", "open", 10);'
 set +e
-out=$(LMGH_GH="$WORK/no-such-gh" "$HOST" --lmcode "$WORK/needs-gh.dslb" 2>&1); code=$?
+out=$(LMGH_GH="$WORK/no-such-gh" "$LMSCRIPT" "$WORK/needs-gh.lms" 2>&1); code=$?
 set -e
 [ "$code" = 3 ] && [[ "$out" == *'missing gh executable'* ]] || fail "missing gh refusal (exit $code): $out"
 ok "missing gh binary refused"
@@ -166,6 +167,32 @@ ok "dry-run write recorded in report"
 
 compile_chunk merge-dry 'gh.dry_run(true); print(gh.pr_merge("octo", "demo", 21, "squash"));'
 expect_run merge-dry 0 'dry-run: gh pr merge 21 -R octo/demo --squash'
+
+# issue_close / pr_comment / label_add / release_create
+compile_chunk writes-live 'print(gh.issue_close("octo", "demo", 3, "not planned")); print(gh.pr_comment("octo", "demo", 21, "Looks good")); print(gh.label_add("octo", "demo", 21, "bug")); print(gh.release_create("octo", "demo", "v9.9.9", "Nine", "notes", false, true));'
+set +e
+out=$(FAKE_GH_LOG="$WORK/writes.log" "$LMSCRIPT" "$WORK/writes-live.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] || fail "writes-live (exit $code): $out"
+for needle in '"issue", "close", "3", "-R", "octo/demo", "--reason", "not planned"' \
+  '"pr", "comment", "21", "-R", "octo/demo", "--body", "Looks good"' \
+  '"api", "--method", "POST", "repos/octo/demo/issues/21/labels", "-f", "labels[]=bug"' \
+  '"release", "create", "v9.9.9", "-R", "octo/demo", "--title", "Nine", "--notes", "notes", "--prerelease"'; do
+  grep -qF "$needle" "$WORK/writes.log" || fail "write argv missing $needle: $(cat "$WORK/writes.log")"
+done
+ok "issue_close, pr_comment, label_add and release_create reach gh with exact argv"
+
+compile_chunk writes-dry 'gh.dry_run(true); print(gh.issue_close("octo", "demo", 3, "")); print(gh.pr_comment("octo", "demo", 21, "hi")); print(gh.label_add("octo", "demo", 21, "bug")); print(gh.release_create("octo", "demo", "v1", "T", "N", false, false)); report.write_text("build/test-chunks/writes-dry-report.txt");'
+set +e
+out=$(FAKE_GH_LOG="$WORK/writes-dry.log" "$LMSCRIPT" "$WORK/writes-dry.lms" 2>&1); code=$?
+set -e
+[ "$code" = 0 ] && [[ "$out" == *'dry-run: gh issue close 3 -R octo/demo'* ]] || fail "writes-dry (exit $code): $out"
+[ ! -e "$WORK/writes-dry.log" ] || fail "dry-run writes reached gh"
+[ "$(grep -c '^dry-run: ' "$WORK/writes-dry-report.txt")" = 4 ] || fail "dry-run write report entries"
+ok "new write ops honor dry_run"
+
+expect_refusal bad-close-reason 'gh.issue_close("octo", "demo", 3, "whatever");' 'invalid reason'
+expect_refusal bad-comment-empty 'gh.pr_comment("octo", "demo", 3, "");' 'body must not be empty'
 
 # human-in-the-loop PR flow: pr_prepare writes the review TOML, the operator
 # edits it, pr_submit pushes only that reviewed file's contents.
@@ -189,11 +216,11 @@ rm -f pr-review-octo-demo.toml
 
 # operator edits the TOML between prepare and submit; the edit must reach gh
 compile_chunk pr-edit-prepare 'gh.pr_prepare("octo", "demo", "Original title", "b", "main", "feature-x", false);'
-expect_run pr-edit-prepare 0 '"ok": true'
+expect_run pr-edit-prepare 0 ''
 sed -i 's/Original title/Operator edited title/' pr-review-octo-demo.toml
 compile_chunk pr-edit-submit 'let pr = gh.pr_submit("octo", "demo", "pr-review-octo-demo.toml"); print("#" + str(pr.number()));'
 set +e
-out=$(FAKE_GH_LOG="$WORK/gh-write.log" "$HOST" --lmcode "$WORK/pr-edit-submit.dslb" 2>&1); code=$?
+out=$(FAKE_GH_LOG="$WORK/gh-write.log" "$LMSCRIPT" "$WORK/pr-edit-submit.lms" 2>&1); code=$?
 set -e
 [ "$code" = 0 ] && [[ "$out" == *"#43"* ]] || fail "edited submit (exit $code): $out"
 grep -q 'Operator edited title' "$WORK/gh-write.log" || fail "edited title never reached gh: $(cat "$WORK/gh-write.log")"
@@ -232,7 +259,7 @@ set -e
 [ "$code" = 4 ] && [[ "$out" == *'APP_FAIL'* ]] || fail "missing bytecode file (exit $code): $out"
 ok "missing bytecode file exits 4"
 
-python3 tests/check-recipes.py "$LMSCRIPT" "$HOST" || fail "offline recipe scenarios"
+python3 tests/check-recipes.py "$LMSCRIPT" || fail "offline recipe scenarios"
 ok "all task recipes match pinned stdout and reports"
 
 echo "PASS: $PASS checks"

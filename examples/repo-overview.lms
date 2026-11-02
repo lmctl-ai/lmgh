@@ -1,10 +1,9 @@
 # Repository overview for owner/repo: metadata plus a small health summary.
 # Run:    lmscript examples/repo-overview.lms <owner> <repo>
-out = ARGV.len() > 0 ? ARGV[0] : "build/repo-overview.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
 
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let r = gh.repo_view(${owner}, ${repo});
 print(r.full_name() + ": " + r.description());
 print("default branch: " + r.default_branch() + ", license: " + r.license());
@@ -19,4 +18,8 @@ print("topics: " + t);
 report.add("overview", r.full_name(), "pushed at " + r.pushed_at());
 report.write_text("build/repo-overview.txt");
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

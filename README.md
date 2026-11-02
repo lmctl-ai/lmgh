@@ -2,7 +2,7 @@
 
 lmgh is a native host for [lmcode](https://github.com/lmctl-ai/lmcode-go)
 bytecode that turns the GitHub CLI (`gh`) into a scriptable, type-checked API:
-LMScript source is compiled against the lmgh schema into DSL bytecode, and the
+LMScript source is compiled against the lmgh schema into bytecode, and the
 `lmgh` host executes it through `gh` (argv only, prompts disabled), producing
 typed `Repo`, `Issue`, `Pr`, `Triage`, `Release` and `Run` objects plus a
 `Report` for findings.
@@ -16,25 +16,26 @@ licensed like upstream (see [LICENSE](LICENSE) and
 ## Use it — no installation
 
 Users do **not** install lmgh and do **not** need Go. A `_lmcode_` block that
-names lmgh makes `lmscript` download the released host binary for your
-platform (SHA-256 verified, cached), compile against its embedded schema, and
-run it:
+names lmgh makes `lmscript` find the host (`lmgh` on `PATH`, or the binary
+fetched with `lmscript install github:lmctl-ai/lmgh`), compile against its
+embedded schema, and `run_lmcode` executes it:
 
 ```lms
-out = ARGV.len() > 0 ? ARGV[0] : "build/open-prs.dslb";
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
-let prs = gh.pr_list("lmctl-ai", "lmgh", "open", 30);
+owner = ARGV.len() > 0 ? ARGV[0] : "lmctl-ai";
+repo = ARGV.len() > 1 ? ARGV[1] : "lmgh";
+p = _lmcode_ cli="lmgh";
+let prs = gh.pr_list(${owner}, ${repo}, "open", 30);
 for (i in range(0, prs.len())) {
   let pr = prs.at(i);
   print("#" + str(pr.number()) + ": " + pr.title() + " (by @" + pr.author() + ")");
 }
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) { print(r.message); exit(r.code == "APP_FAIL" ? 4 : 3); }
 ```
 
 ```sh
-lmscript open-prs.lms build/open-prs.dslb <owner> <repo>   # compiles AND fetches the lmgh host on first use
-lmgh --lmcode build/open-prs.dslb         # or run it straight from the lmscript tool cache
+lmscript open-prs.lms <owner> <repo>   # compiles against the host schema and runs it
 ```
 
 The only runtime requirement is the `gh` binary itself (version >= 2.45.0,
@@ -56,12 +57,8 @@ exit 4; host/API errors use exit 3. All seven are read-only on GitHub.
 
 ```sh
 mkdir -p build
-# Needs the forthcoming lmgh >= 0.2.3; build main until the owner releases it.
-lmscript examples/ci-errors.lms build/ci-errors.dslb lmctl-ai lmgcp 5
-lmgh --lmcode build/ci-errors.dslb
-# Existing lmgh 0.2.2 operations:
-lmscript examples/org-ci-health.lms build/health.dslb lmctl-ai lmgh,lmgcp
-lmgh --lmcode build/health.dslb
+lmscript examples/ci-errors.lms lmctl-ai lmgcp 5
+lmscript examples/org-ci-health.lms lmctl-ai lmgh,lmgcp
 ```
 
 The CI recipe retrieves failed-job logs and reports the first recognized error
@@ -72,14 +69,12 @@ job names; scan limits and log heuristics are documented with each recipe.
 
 Reads: `repo_view`, `issue_list`, `issue_view`, `pr_list`, `pr_view`,
 `pr_triage`, `release_list`, `run_list`, `search_repos`, `search_issues`,
-`search_prs`, `file_text`. New on main for the next release (>= 0.2.3):
-`Run.id()` and `run_failed_log(owner, repo, run_id)` expose failed-job logs with
+`search_prs`, `file_text`. `Run.id()` and `run_failed_log(owner, repo, run_id)` expose failed-job logs with
 a 30-second deadline and 1 MiB output cap; missing or partial logs are errors.
 Writes: `issue_create`, `pr_merge`, `issue_close(owner, repo, n, reason)`,
 `pr_comment(owner, repo, n, body)`, `label_add(owner, repo, n, label)` and
 `release_create(owner, repo, tag, title, notes, draft, prerelease)` — all honor
 `gh.dry_run(bool)`, which records intent in the report instead of calling `gh`.
-The four newest are on main for the next release.
 
 Human-in-the-loop PRs: `pr_prepare(owner, repo, title, body, base, head, draft)`
 writes `pr-review-<owner>-<repo>.toml` — a plain TOML file (via
@@ -95,7 +90,7 @@ honors `gh.dry_run(bool)`. See [`examples/submit-pr.lms`](examples/submit-pr.lms
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 47 checks, including 14 offline recipe scenarios
+./test.sh                  # 51 checks, including 14 offline recipe scenarios
 ```
 
 Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`

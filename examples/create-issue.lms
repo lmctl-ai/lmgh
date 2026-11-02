@@ -1,14 +1,13 @@
 # Creates an issue. Pass --dry (as the 4th outer argument) to record the
 # intent in the report without calling gh; otherwise the issue is created.
 # Run:    lmscript examples/create-issue.lms <owner> <repo> <title> [body]
-out = ARGV.len() > 0 ? ARGV[0] : "build/create-issue.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
-title = ARGV.len() > 3 ? ARGV[3] : "Test issue from lmgh";
-body = ARGV.len() > 4 ? ARGV[4] : "Created by the lmgh create-issue example.";
-dry = ARGV.len() > 5 ? ARGV[5] == "--dry" : true;
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+title = ARGV.len() > 2 ? ARGV[2] : "Test issue from lmgh";
+body = ARGV.len() > 3 ? ARGV[3] : "Created by the lmgh create-issue example.";
+dry = ARGV.len() > 4 ? ARGV[4] == "--dry" : true;
 
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 gh.dry_run(${dry});
 let issue = gh.issue_create(${owner}, ${repo}, ${title}, ${body});
 if (gh.is_dry_run()) {
@@ -18,4 +17,8 @@ if (gh.is_dry_run()) {
 }
 report.write_text("build/create-issue.txt");
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

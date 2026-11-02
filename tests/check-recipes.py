@@ -24,16 +24,13 @@ CASES = [
 ]
 
 
-def execute(case, compiler, host):
+def execute(case, compiler):
     label, name, code, args, scenario, extension = case
     env = dict(os.environ, FAKE_GH_RECIPES="1", FAKE_GH_SCENARIO=scenario)
-    bytecode = ROOT / "build" / (label + ".dslb")
     report = ROOT / "build" / (name + "." + (extension or "json"))
     report.unlink(missing_ok=True)
-    subprocess.run([compiler, str(ROOT / "examples" / (name + ".lms")), str(bytecode), *args],
-                   env=env, cwd=ROOT, check=True, capture_output=True, timeout=60)
-    result = subprocess.run([host, "--lmcode", str(bytecode)], env=env, cwd=ROOT,
-                            capture_output=True, timeout=60)
+    result = subprocess.run([compiler, str(ROOT / "examples" / (name + ".lms")), *args],
+                            env=env, cwd=ROOT, capture_output=True, timeout=120)
     if result.returncode != code or result.stderr:
         raise AssertionError(f"{label}: expected exit {code}, got {result.returncode}: {result.stdout!r} {result.stderr!r}")
     if not extension and report.exists():
@@ -42,10 +39,10 @@ def execute(case, compiler, host):
 
 
 def main():
-    compiler, host = map(lambda p: str(Path(p).resolve()), sys.argv[1:])
+    compiler = str(Path(sys.argv[1]).resolve())  # lmgh must already be on PATH
     for case in CASES:
         label = case[0]
-        output, report = execute(case, compiler, host)
+        output, report = execute(case, compiler)
         expected = ROOT / "tests/expected" / (label + ".out")
         if output != expected.read_bytes():
             raise AssertionError(f"{label}: stdout differs from {expected}\nactual: {output!r}")

@@ -1,8 +1,7 @@
 # Check the newest non-draft, non-prerelease release and its latest CI run.
-out = ARGV.len() > 0 ? ARGV[0] : "build/release-readiness.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+p = _lmcode_ cli="lmgh";
 let info = gh.repo_view(${owner}, ${repo});
 let releases = gh.release_list(${owner}, ${repo}, 30);
 let found = false;
@@ -27,4 +26,8 @@ if (seen.len() == 0) { report.add("ci-missing", ${owner} + "/" + ${repo}, "no de
 report.write_text("build/release-readiness.txt");
 report.fail_if_any();
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

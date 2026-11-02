@@ -1,10 +1,9 @@
 # Lists open pull requests with number, title, author and branch.
 # Run:    lmscript examples/open-prs.lms <owner> <repo>
-out = ARGV.len() > 0 ? ARGV[0] : "build/open-prs.dslb";
-owner = ARGV.len() > 1 ? ARGV[1] : "octo";
-repo = ARGV.len() > 2 ? ARGV[2] : "demo";
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
 
-p = _lmcode_ cli="lmgh" install="github:lmctl-ai/lmgh@latest";
+p = _lmcode_ cli="lmgh";
 let prs = gh.pr_list(${owner}, ${repo}, "open", 30);
 for (i in range(0, prs.len())) {
   let pr = prs.at(i);
@@ -15,4 +14,8 @@ for (i in range(0, prs.len())) {
 }
 report.write_text("build/open-prs.txt");
 end _lmcode_
-savedsl(p, out);
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}
