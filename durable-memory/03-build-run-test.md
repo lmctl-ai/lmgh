@@ -55,6 +55,10 @@ registry (`lmgh --lmcode-signatures`) — checked both directions for host
 signatures in `test.sh`. The registry is intentionally a superset (full SDK
 std v3) so every compiler-emittable call binds.
 
+The compiler for tests and CI is the `staging` dist-tag of the npm package
+(`npm install -g @lmctl-ai/lmctl@staging`; 0.2.455 when last run); no version is
+pinned in the repo.
+
 ## Test flow (`./test.sh`, 85 checks)
 
 1. compiler present (`LMSCRIPT_BIN` overrides)

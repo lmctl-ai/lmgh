@@ -11,7 +11,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # --- compiler ----------------------------------------------------------
 LMSCRIPT="${LMSCRIPT_BIN:-$(command -v lmscript || true)}"
-[ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl"
+[ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl@staging"
 LMSCRIPT="$(scripts/select-compiler.sh)" || fail "compiler capability probe"
 ok "compiler compiles against a host-only schema"
 

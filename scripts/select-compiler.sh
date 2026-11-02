@@ -25,6 +25,6 @@ else
     [ -n "$candidate" ] && "$candidate" --lmcode-signatures "$WORK/probe.schema.json" 2>&1 | head -3 >&2
     [ -n "$candidate" ] && "$candidate" --check "$WORK/probe.lms" 2>&1 | head -10 >&2
   fi
-  echo "error: no working lmscript compiler found; install the latest @lmctl-ai/lmctl so lmscript is on PATH, or set LMSCRIPT_BIN" >&2
+  echo "error: no working lmscript compiler found; install @lmctl-ai/lmctl@staging so lmscript is on PATH, or set LMSCRIPT_BIN" >&2
   exit 2
 fi

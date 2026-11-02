@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: "22"
       - name: Install lmscript
-        run: npm install -g @lmctl-ai/lmctl@0.2.426
+        run: npm install -g @lmctl-ai/lmctl@staging
       - name: Build and test
         run: ./test.sh
 
