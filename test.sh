@@ -13,7 +13,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 LMSCRIPT="${LMSCRIPT_BIN:-$(command -v lmscript || true)}"
 [ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl"
 LMSCRIPT="$(scripts/select-compiler.sh)" || fail "compiler capability probe"
-ok "compiler emitted v6 with implicit std"
+ok "compiler compiles against a host-only schema"
 
 # --- upstream cli/cli pin ----------------------------------------------
 scripts/sync-cli.sh --verify 2>/dev/null || scripts/sync-cli.sh || fail "cannot sync third_party/cli"

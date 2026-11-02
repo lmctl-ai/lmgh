@@ -1,7 +1,7 @@
 # Schema v0
 
 `schema/lmgh.host.json` (copied byte-identical to `schema/lmgh.dsl.json`) is
-the authored contract: `dsl.schema: 2`, name `lmgh`. With lmscript ≥ 0.2.420
+the authored contract: `dsl.schema: 2`, name `lmgh`. With a current lmscript
 the compiler supplies the std catalog implicitly, so the embedded schema is
 host-only; `print` and `assert_close` are host-provided via
 `lmcode.RegisterTesting` and declared in the schema functions (the lmhtml

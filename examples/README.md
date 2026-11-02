@@ -63,7 +63,7 @@ lmgh --lmcode build/stale-prs.dslb
 `Gh.run_failed_log()`. Until the owner releases it, build main and put `build/`
 on PATH when compiling; the embedded schema must match the binary used to run.
 The other six new recipes use existing 0.2.2 operations. A compatible lmscript
-compiler must support implicit std and bytecode v6 (see `scripts/select-compiler.sh`).
+compiler must support implicit std and `_lmcode_` blocks (see `scripts/select-compiler.sh`).
 
 Each recipe writes `build/NAME.txt` or `.json` before `report.fail_if_any()`:
 exit 0 means no findings, exit 4 means findings, and exit 3 means an incomplete

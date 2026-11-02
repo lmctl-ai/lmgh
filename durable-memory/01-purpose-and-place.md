@@ -6,8 +6,8 @@ instead of ad-hoc argv strings.
 
 ## Place in the stack
 
-- LMScript source → `lmscript` (≥ 0.2.420) compiles against
-  `schema/lmgh.dsl.json` → DSL bytecode v5 (`.dslb`).
+- LMScript source → `lmscript` compiles against
+  `schema/lmgh.dsl.json` → DSL bytecode (`.dslb`).
 - `lmgh` host (Go, `github.com/lmctl-ai/lmcode-go` SDK, CGO disabled)
   embeds the exact schema bytes, loads the bytecode, and runs it.
 - Every operation shells out to `gh` (argv only; `GH_PROMPT_DISABLED=1`,

@@ -55,12 +55,12 @@ std v3) so every compiler-emittable call binds.
 
 ## Test flow (`./test.sh`, 44 checks)
 
-1. compiler present, ≥ 0.2.420 (`LMSCRIPT_BIN` overrides)
+1. compiler present (`LMSCRIPT_BIN` overrides)
 2. `scripts/sync-cli.sh --verify` (auto-syncs when missing)
 3. `go build`, then a `gh` wrapper on `PATH` pointing at
    [tests/fake-gh.py](../tests/fake-gh.py) — canned JSON, fails for any repo
    other than `octo/demo`, never touches the network
-4. examples compile to bytecode v5, run, and stdout + report files diff
+4. examples compile to bytecode, run, and stdout + report files diff
    byte-for-byte against `tests/expected/`
 5. refusal chunks: bad state/limit/merge-kind, list `at()` out of range,
    unknown repo, missing gh (`LMGH_GH` pointing nowhere), live + dry-run
