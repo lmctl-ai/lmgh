@@ -75,8 +75,11 @@ Reads: `repo_view`, `issue_list`, `issue_view`, `pr_list`, `pr_view`,
 `search_prs`, `file_text`. New on main for the next release (>= 0.2.3):
 `Run.id()` and `run_failed_log(owner, repo, run_id)` expose failed-job logs with
 a 30-second deadline and 1 MiB output cap; missing or partial logs are errors.
-Writes: `issue_create`, `pr_merge` — both honor `gh.dry_run(bool)`, which
-records intent in the report instead of calling `gh`.
+Writes: `issue_create`, `pr_merge`, `issue_close(owner, repo, n, reason)`,
+`pr_comment(owner, repo, n, body)`, `label_add(owner, repo, n, label)` and
+`release_create(owner, repo, tag, title, notes, draft, prerelease)` — all honor
+`gh.dry_run(bool)`, which records intent in the report instead of calling `gh`.
+The four newest are on main for the next release.
 
 Human-in-the-loop PRs: `pr_prepare(owner, repo, title, body, base, head, draft)`
 writes `pr-review-<owner>-<repo>.toml` — a plain TOML file (via

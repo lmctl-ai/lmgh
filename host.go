@@ -63,6 +63,7 @@ func NewHost() *Host {
 	h.must(h.reg.Context("gh", "Gh"))
 	h.must(h.reg.Context("report", "Report"))
 	h.registerGh()
+	h.registerWrites()
 	h.registerRepo()
 	h.registerRepoList()
 	h.registerStrings()

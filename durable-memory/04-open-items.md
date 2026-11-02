@@ -7,9 +7,9 @@ Candidate work after v0, in no fixed order.
 - `api_json(path)` escape hatch: blocked because the compiler rejects std
   `Json` as a host-declared return type. Options: compiler support, or a
   host `ApiResult` type with `get`/`at` navigation.
-- More write ops with dry-run support: `issue_close`, `pr_comment`,
-  `label_add`, `release_create`. gh2's catalog (git history) is the
-  reference list.
+- Done on the working branch: `issue_close`, `pr_comment`, `label_add`,
+  `release_create` (writes.go; dry-run aware, argv pinned by Go tests).
+  Remaining gh2 catalog candidates: reviews, label removal, issue edit.
 - `pr_triage` additions when gh exposes them: unresolved review threads
   (needs `reviewThreads`, absent from gh v2.103.3).
 - Pagination beyond `--limit` (cursors via `gh api`).

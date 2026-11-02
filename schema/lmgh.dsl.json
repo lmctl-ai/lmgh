@@ -40,6 +40,18 @@
         "pr_merge": [
           { "params": ["string", "string", "int", "string"], "returns": "string" }
         ],
+        "issue_close": [
+          { "params": ["string", "string", "int", "string"], "returns": "string" }
+        ],
+        "pr_comment": [
+          { "params": ["string", "string", "int", "string"], "returns": "string" }
+        ],
+        "label_add": [
+          { "params": ["string", "string", "int", "string"], "returns": "string" }
+        ],
+        "release_create": [
+          { "params": ["string", "string", "string", "string", "string", "bool", "bool"], "returns": "string" }
+        ],
         "release_list": [
           { "params": ["string", "string", "int"], "returns": "ReleaseList" }
         ],
