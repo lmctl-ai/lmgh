@@ -140,7 +140,7 @@ assets plus `SHA256SUMS` and creates the GitHub release (the asset names follow 
 and exercise the invocation protocol. No local tagging or publishing is needed. [durable-memory/](durable-memory/) records the design and
 decisions.
 
-## Host protocol (v0.3.1)
+## Host protocol (v0.3.2)
 
 The Go SDK is pinned by full reviewed SHA in [`sdk.lock`](sdk.lock) and by its
 checksummed pseudo-version in `go.mod`/`go.sum`. The host reads lmcode bytecode
@@ -167,5 +167,5 @@ results or a structured failure without result data. Exit 0 means success,
 (including `report.fail_if_any()` and unreadable input). Builder failures identify
 the original manifest part and stop dispatching subsequent programs.
 
-Downstream recipes can pin `install="github:lmctl-ai/lmgh@v0.3.1"` rather than
+Downstream recipes can pin `install="github:lmctl-ai/lmgh@v0.3.2"` rather than
 tracking `latest`. The compiler used in CI is privately installed version 0.2.456.
