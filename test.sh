@@ -25,6 +25,12 @@ HOST=build/lmgh
 ok "go build (CGO disabled)"
 go test ./... || fail "Go host operation tests"
 ok "Go host operation tests"
+COMPILER_ROOT="${LMSCRIPT_ROOT:-}"
+if [ -z "$COMPILER_ROOT" ]; then
+  COMPILER_ROOT="$(node -e 'const f=require("node:fs"),p=require("node:path");console.log(p.dirname(p.dirname(f.realpathSync(process.argv[1]))))' "$LMSCRIPT")"
+fi
+LMSCRIPT_ROOT="$COMPILER_ROOT" node tests/proposal.mjs "$HOST" || fail "inline TOML proposal preview and loopback submit"
+ok "inline TOML proposal preview and loopback submit"
 python3 tests/check-sdk-pin.py || fail "reviewed SDK pin"
 LMSCRIPT_BIN="$LMSCRIPT" python3 tests/check-protocol.py "$HOST" || fail "invocation protocol"
 ok "invocation protocol"

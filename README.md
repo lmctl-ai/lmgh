@@ -142,6 +142,11 @@ decisions.
 
 ## Host protocol (v0.3.2)
 
+Inline TOML proposals: [`pr_create_toml(string) -> Json`](docs/toml-proposals.md)
+accepts the complete `[pr]` table. Its explicit dry callback validates and prints
+every proposal field without invoking gh or writing files; real dispatch creates
+the PR once. See `examples/toml-pr.lms` and the native loopback acceptance lane.
+
 The Go SDK is pinned by full reviewed SHA in [`sdk.lock`](sdk.lock) and by its
 checksummed pseudo-version in `go.mod`/`go.sum`. The host reads lmcode bytecode
 (DSLB v6, the current literal format name), exposes only `--lmcode FILE`,
@@ -154,7 +159,7 @@ before any GitHub process or operation runs. Without the variable, standalone
 invocations use argument-order result slots and live mode. In builders, manifest
 indices determine result order independently of the repeated selectors' argv order.
 
-Dry invocations skip all domain callbacks, including subprocesses, review-file
+Except for the explicit inline-proposal validator above, dry invocations skip domain callbacks, including subprocesses, review-file
 creation and report writes; the SDK supplies typed primitive/object dummies.
 `gh.dry_run(false)` cannot turn an invocation live. The operation-level
 `gh.dry_run(true)` remains available in live mode for existing write-intent reports.

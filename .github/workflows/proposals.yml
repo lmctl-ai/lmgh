@@ -1,0 +1,32 @@
+name: TOML proposals
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  proposal:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      LMSCRIPT_ROOT: ${{ runner.temp }}/proposal-compiler/node_modules/@lmctl-ai/lmctl
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: '1.26'
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: '24'
+      - run: npm install --prefix "${{ runner.temp }}/proposal-compiler" --ignore-scripts @lmctl-ai/lmctl@0.2.458
+      - run: go test ./...
+      - run: go build -o build/proposal-host.exe .
+      - name: Check, dry preview, refusals and one loopback submit
+        run: node tests/proposal.mjs build/proposal-host.exe

@@ -228,6 +228,7 @@
     }
   },
   "functions": {
+    "pr_create_toml": [{"params":["string"],"returns":"Json"}],
     "print": [
       { "params": ["string"], "returns": "void" }
     ],

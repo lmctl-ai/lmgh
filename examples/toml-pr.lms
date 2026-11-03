@@ -1,0 +1,19 @@
+# The argument is the lmgh executable; check reads only the adjacent schema.
+proposal = _toml_;
+[pr]
+owner = "octo"
+repo = "demo"
+title = "Preserve proposals"
+body = "Exact proposal body: Unicode 水 and quoted text."
+base = "main"
+head = "proposal"
+draft = true
+labels = ["review", "docs"]
+reviewers = ["octocat"]
+end _toml_
+p = _lmcode_ schema="../schema/lmgh.host.json";
+$return = pr_create_toml(${proposal.toString()});
+end _lmcode_
+r = run_lmcode(p, {command:[ARGV[0], "--lmcode", "$DSLFILE"]});
+require(r.ok, "PR proposal rejected: " + json_stringify(r));
+println(json_stringify(r));
