@@ -48,22 +48,46 @@ The schema ([`schema/lmgh.dsl.json`](schema/lmgh.dsl.json)) is the contract:
 catalog) and `report: Report` (findings log with `write_text`, `write_json`
 and `fail_if_any`, which fails with exit 4 / `APP_FAIL` when non-empty).
 
-## Recipes: check the CI errors
+## Task recipes
 
 [Task recipes](examples/README.md) explain failures, compare default-branch CI
 across repositories, find stale/unreviewed PRs, check release readiness, triage
 unlabeled issues and audit missing repository metadata. Findings are saved before
-exit 4; host/API errors use exit 3. All seven are read-only on GitHub.
+exit 4; host/API errors use exit 3. All recipes are read-only on GitHub.
 
-```sh
-mkdir -p build
-lmscript examples/ci-errors.lms lmctl-ai lmgcp 5
-lmscript examples/org-ci-health.lms lmctl-ai lmgh,lmgcp
-```
+### CI failure log extraction (`ci-errors.lms`)
+
+![ci-errors](docs/images/ci-errors.png)
+`lmscript examples/ci-errors.lms lmctl-ai lmgcp 5`
 
 The CI recipe retrieves failed-job logs and reports the first recognized error
 per job, rather than stopping at a red run badge. Reports retain run URLs and
 job names; scan limits and log heuristics are documented with each recipe.
+
+### Multi-repository default-branch health (`org-ci-health.lms`)
+
+![org-ci-health](docs/images/org-ci-health.png)
+`lmscript examples/org-ci-health.lms lmctl-ai lmgh,lmvideo,lmgcp`
+
+### Release and workflow verification (`release-readiness.lms`)
+
+![release-readiness](docs/images/release-readiness.png)
+`lmscript examples/release-readiness.lms lmctl-ai lmgh`
+
+### Repository metadata audit (`repo-audit.lms`)
+
+![repo-audit](docs/images/repo-audit.png)
+`lmscript examples/repo-audit.lms lmctl-ai lmgh`
+
+### PR checks and review triage (`pr-triage.lms`)
+
+![pr-triage](docs/images/pr-triage.png)
+`lmscript examples/pr-triage.lms lmctl-ai lmgh 1`
+
+### Stale and inactive PR detection (`stale-prs.lms`)
+
+![stale-prs](docs/images/stale-prs.png)
+`lmscript examples/stale-prs.lms lmctl-ai lmmock -1`
 
 ## Operation catalog (v0)
 
