@@ -94,7 +94,7 @@ job names; scan limits and log heuristics are documented with each recipe.
 Reads: `repo_view`, `issue_list`, `issue_view`, `pr_list`, `pr_view`,
 `pr_triage`, `release_list`, `run_list`, `search_repos`, `search_issues`,
 `search_prs`, `file_text`. `Run.id()` and `run_failed_log(owner, repo, run_id)` expose failed-job logs with
-a 30-second deadline and 1 MiB output cap; missing or partial logs are errors.
+no implicit deadline or byte ceiling; empty or failed log retrievals are errors.
 Writes: `issue_create`, `pr_merge`, `issue_close(owner, repo, n, reason)`,
 `pr_comment(owner, repo, n, body)`, `label_add(owner, repo, n, label)` and
 `release_create(owner, repo, tag, title, notes, draft, prerelease)` — all honor
@@ -131,9 +131,41 @@ scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
 ./test.sh                  # 85 checks, including 14 offline recipe scenarios
 ```
 
-Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`
+Releases: dispatch the CI workflow on `main` with `release=true` to publish the
+version declared in `host.go`; CI creates the tag. Existing `v*` tag events also
+run the release flow. CI — CI runs `./test.sh`
 and, once tests pass, cross-builds the six `lmgh-{linux,macos,windows}-{x64,arm64}`
-assets plus `SHA256SUMS` and creates the GitHub release (the asset names are
-the lmscript `install=` convention). `scripts/release.sh <version>` remains as
-the local fallback. [durable-memory/](durable-memory/) records the design and
+assets plus `SHA256SUMS` and creates the GitHub release (the asset names follow the lmscript
+`install=` convention). Five native runners download and check those assets
+and exercise the invocation protocol. No local tagging or publishing is needed. [durable-memory/](durable-memory/) records the design and
 decisions.
+
+## Host protocol (v0.3.0)
+
+The Go SDK is pinned by full reviewed SHA in [`sdk.lock`](sdk.lock) and by its
+checksummed pseudo-version in `go.mod`/`go.sum`. The host reads lmcode bytecode
+(DSLB v6, the current literal format name), exposes only `--lmcode FILE`,
+`--lmcode-schema [--json]`, `--lmcode-signatures` and `--version`, and accepts
+stable `--first FILE` / `--last FILE` builder roles. Retired flags have no aliases.
+
+`LMCODE_INVOCATION_FILE` selects an absolute-path invocation manifest v1. Its
+`dry` field must be boolean; missing or malformed metadata fails with exit 2
+before any GitHub process or operation runs. Without the variable, standalone
+invocations use argument-order result slots and live mode. In builders, manifest
+indices determine result order even when role flags reorder execution.
+
+Dry invocations skip all domain callbacks, including subprocesses, review-file
+creation and report writes; the SDK supplies typed primitive/object dummies.
+`gh.dry_run(false)` cannot turn an invocation live. The operation-level
+`gh.dry_run(true)` remains available in live mode for existing write-intent reports.
+Dry reads return dummy data, so dry execution is a policy check, not a GitHub preview.
+
+`$return` supplies the owned per-program result; an omitted result is null.
+One terminal `LMCODE_RETURN_BEGIN` / `LMCODE_RETURN_END` frame contains success
+results or a structured failure without result data. Exit 0 means success,
+2 CLI/manifest failure, 3 load/runtime failure and 4 application failure
+(including `report.fail_if_any()` and unreadable input). Builder failures identify
+the original manifest part and stop dispatching subsequent programs.
+
+Downstream recipes can pin `install="github:lmctl-ai/lmgh@v0.3.0"` rather than
+tracking `latest`. The compiler used in CI is privately installed version 0.2.456.

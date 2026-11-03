@@ -59,8 +59,7 @@ the script then exits with the host outcome: exit 0 means no findings, exit 4 me
 scan due to a host/API/log error. `ci-errors` includes historical failed runs
 within its requested window; a newer green run does not erase earlier failures.
 Log matching is heuristic, so jobs without recognized errors link back to their
-full logs. Empty/deleted/inaccessible logs fail honestly; logs over 1 MiB and
-commands over 30 seconds are refused. Error lines and reports may contain
+full logs. Empty/deleted/inaccessible logs fail honestly; log retrieval has no implicit output ceiling or host deadline. Error lines and reports may contain
 repository data, so inspect before sharing.
 
 Search/list scans are bounded (100 PRs/issues/repos/runs; 30 releases); results

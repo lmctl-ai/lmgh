@@ -5,6 +5,11 @@ on:
     branches: ["**"]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release:
+        description: Publish the version in host.go after tests pass (main only)
+        type: boolean
+        default: false
 
 # Least privilege: the test job and asset builds only read; the release job
 # alone gets contents: write.
@@ -28,16 +33,20 @@ jobs:
           go-version: "1.26"
       - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: "22"
+          node-version: "24"
       - name: Install lmscript
-        run: npm install -g @lmctl-ai/lmctl@staging
+        run: |
+          npm install --prefix "$RUNNER_TEMP/lmgh-compiler" @lmctl-ai/lmctl@0.2.456
+          echo "$RUNNER_TEMP/lmgh-compiler/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Build and test
         run: ./test.sh
 
   release:
     # Pushing a v* tag publishes: assets build only after tests pass.
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     needs: test
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -67,10 +76,15 @@ jobs:
           build windows windows arm64 arm64 ".exe"
           (cd "$OUT" && sha256sum "$PROG"-* > SHA256SUMS)
 
-      - name: Tag matches lmgh --version (lmscript @latest compares them)
+      - name: Validate the release version
+        id: version
         run: |
-          got="$(./dist/lmgh-linux-x64 --version)"
-          test "$got" = "lmgh ${GITHUB_REF_NAME#v}" || { echo "::error::tag $GITHUB_REF_NAME but binary says '$got' (bump the version constant in host.go)"; exit 1; }
+          version="$(./dist/lmgh-linux-x64 --version)"
+          version="${version#lmgh }"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$version"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then test "$GITHUB_REF_NAME" = "$tag"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -81,26 +95,27 @@ jobs:
       - name: Attach binaries to the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           # idempotent: re-running a tag's workflow overwrites the assets
-          if gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --clobber dist/*
+          if gh release view "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --clobber dist/*
           else
-            gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --title "lmgh ${GITHUB_REF_NAME#v}" --generate-notes dist/*
+            gh release create "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "lmgh ${RELEASE_TAG#v}" --generate-notes dist/*
           fi
 
       - name: Verify the uploaded windows-arm64 asset (no hosted arm64 Windows runner exists)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
-          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p 'lmgh-windows-arm64.exe'
+          gh release download "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" -p 'lmgh-windows-arm64.exe'
           echo "$(grep 'lmgh-windows-arm64.exe' dist/SHA256SUMS | awk '{print $1}')  lmgh-windows-arm64.exe" | sha256sum -c -
 
   verify:
     # Download every asset on a machine running its real OS and execute it.
     # GitHub provides x64/arm64 Linux, Apple Silicon/Intel macOS and Windows
     # runners; windows-arm64 is covered by the download-back checksum above.
-    if: startsWith(github.ref, 'refs/tags/v')
     needs: release
     runs-on: ${{ matrix.os }}
     name: verify ${{ matrix.asset }}
@@ -110,17 +125,32 @@ jobs:
         include:
           - { os: ubuntu-22.04,     asset: lmgh-linux-x64 }
           - { os: ubuntu-22.04-arm, asset: lmgh-linux-arm64 }
-          - { os: macos-15,         asset: lmgh-macos-arm64 }
-          - { os: macos-15-intel,   asset: lmgh-macos-x64 }
+          - { os: macos-26,         asset: lmgh-macos-arm64 }
+          - { os: macos-26-intel,   asset: lmgh-macos-x64 }
           - { os: windows-2022,     asset: lmgh-windows-x64.exe }
+    env:
+      RELEASE_TAG: ${{ needs.release.outputs.tag }}
     defaults:
       run:
         shell: bash
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00
+        with:
+          go-version: "1.26"
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: "24"
+      - name: Install the pinned protocol fixture compiler
+        run: |
+          npm install --prefix "$RUNNER_TEMP/lmgh-compiler" @lmctl-ai/lmctl@0.2.456
+          echo "$RUNNER_TEMP/lmgh-compiler/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Download asset + SHA256SUMS from the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p '${{ matrix.asset }}' -p SHA256SUMS
+        run: gh release download "$RELEASE_TAG" -R "$GITHUB_REPOSITORY" -p '${{ matrix.asset }}' -p SHA256SUMS
 
       - name: Checksum matches the release SHA256SUMS
         run: |
@@ -134,5 +164,10 @@ jobs:
         run: |
           chmod +x '${{ matrix.asset }}'
           got="$(./'${{ matrix.asset }}' --version)"
-          test "$got" = "lmgh ${GITHUB_REF_NAME#v}" || { echo "::error::'$got' != 'lmgh ${GITHUB_REF_NAME#v}'"; exit 1; }
+          test "$got" = "lmgh ${RELEASE_TAG#v}" || { echo "::error::'$got' != 'lmgh ${RELEASE_TAG#v}'"; exit 1; }
           echo "$got on $(uname -srm)"
+
+      - name: Exercise manifests and frames on the downloaded native binary
+        run: |
+          export LMSCRIPT_BIN="$(command -v lmscript)"
+          python3 tests/check-protocol.py './${{ matrix.asset }}'

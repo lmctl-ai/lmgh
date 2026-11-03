@@ -1,0 +1,10 @@
+{
+  "source": "a0c608f",
+  "values": {
+    "repo_view": "demo",
+    "issue_view": "Live title",
+    "pr_list": "Fix login flow",
+    "release_list": "v1.2.0",
+    "search_repos": "demo"
+  }
+}
