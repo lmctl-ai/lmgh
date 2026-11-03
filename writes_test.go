@@ -26,7 +26,7 @@ func callGh(t *testing.T, h *Host, name string, args ...lmcode.Value) (string, e
 func argvHost(t *testing.T) (*Host, string) {
 	log := filepath.Join(t.TempDir(), "argv")
 	t.Setenv("LMGH_ARGV_LOG", log)
-	return fakeGH(t, "printf '%s\\n' \"$*\" >> \"$LMGH_ARGV_LOG\"; echo done"), log
+	return fakeGH(t, "append"), log
 }
 
 func TestWritesBuildExactArgv(t *testing.T) {

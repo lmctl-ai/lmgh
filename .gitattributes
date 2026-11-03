@@ -1,3 +1,2 @@
-# Embedded schema identity must not depend on the runner's checkout newline policy.
-schema/*.json text eol=lf
-*.lms text eol=lf
+* text=auto eol=lf
+*.dslb binary
