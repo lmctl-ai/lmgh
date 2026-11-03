@@ -1,2 +1,2 @@
 UNREVIEWED #22 WIP: dark mode decision=REVIEW_REQUIRED
-lmgh run APP_FAIL: dsl line 15:8: report has 1 finding(s), expected none
+lmgh app APP_FAIL: dsl line 15:8: report has 1 finding(s), expected none

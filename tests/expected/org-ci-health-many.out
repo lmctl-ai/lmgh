@@ -1,4 +1,4 @@
 REPOSITORY WORKFLOW BRANCH RESULT
 octo/demo ci main completed/success
 octo/toolkit build main completed/failure
-lmgh run APP_FAIL: dsl line 23:8: report has 1 finding(s), expected none
+lmgh app APP_FAIL: dsl line 23:8: report has 1 finding(s), expected none

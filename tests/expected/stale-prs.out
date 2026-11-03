@@ -1,4 +1,4 @@
 STALE #22 WIP: dark mode updated 2020-01-01T00:00:00Z
 DRAFT #22
 CONFLICT #22
-lmgh run APP_FAIL: dsl line 18:8: report has 3 finding(s), expected none
+lmgh app APP_FAIL: dsl line 18:8: report has 3 finding(s), expected none

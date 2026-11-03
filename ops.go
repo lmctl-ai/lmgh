@@ -21,7 +21,7 @@ func (h *Host) registerGh() {
 	}
 
 	method("dry_run", []string{"bool"}, "Gh", func(h *Host, args []lmcode.Value) (lmcode.Value, error) {
-		h.dryRun = vbool(args[0])
+		h.dryRun = h.invocationDry || vbool(args[0])
 		return lmcode.Object("Gh", h), nil
 	})
 	method("is_dry_run", nil, "bool", func(h *Host, _ []lmcode.Value) (lmcode.Value, error) {

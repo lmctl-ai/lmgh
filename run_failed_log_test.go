@@ -51,11 +51,11 @@ func TestRunFailedLogValidatesInputs(t *testing.T) {
 	}
 }
 
-func TestRunFailedLogCapsStdout(t *testing.T) {
+func TestRunFailedLogPreservesLargeStdout(t *testing.T) {
 	h := fakeGH(t, "head -c 2097152 /dev/zero")
-	_, err := h.runGhFailedLog("octo", "demo", 1)
-	if err == nil || !strings.Contains(err.Error(), "exceeded 1 MiB cap") {
-		t.Fatalf("want cap refusal, got %v", err)
+	out, err := h.runGhFailedLog("octo", "demo", 1)
+	if err != nil || len(out) != 2097152 {
+		t.Fatalf("want full output, got %d bytes, %v", len(out), err)
 	}
 }
 
@@ -66,10 +66,10 @@ func TestRunFailedLogRejectsEmptySuccess(t *testing.T) {
 	}
 }
 
-func TestRunFailedLogCapsStderrOnFailure(t *testing.T) {
+func TestRunFailedLogPreservesFailureDiagnostic(t *testing.T) {
 	h := fakeGH(t, "head -c 100000 /dev/zero >&2; exit 1")
 	_, err := h.runGhFailedLog("octo", "demo", 1)
-	if err == nil || len(err.Error()) > 4200 {
-		t.Fatalf("bounded stderr error, got %v", err)
+	if err == nil || len(err.Error()) < 100000 {
+		t.Fatalf("complete stderr error, got %v", err)
 	}
 }

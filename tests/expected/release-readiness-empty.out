@@ -1,1 +1,1 @@
-lmgh run APP_FAIL: dsl line 27:8: report has 2 finding(s), expected none
+lmgh app APP_FAIL: dsl line 27:8: report has 2 finding(s), expected none

@@ -1,2 +1,2 @@
 UNLABELED #14 Needs an owner
-lmgh run APP_FAIL: dsl line 14:8: report has 1 finding(s), expected none
+lmgh app APP_FAIL: dsl line 14:8: report has 1 finding(s), expected none

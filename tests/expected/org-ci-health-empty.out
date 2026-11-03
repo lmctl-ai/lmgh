@@ -1,2 +1,2 @@
 REPOSITORY WORKFLOW BRANCH RESULT
-lmgh run APP_FAIL: dsl line 23:8: report has 1 finding(s), expected none
+lmgh app APP_FAIL: dsl line 23:8: report has 1 finding(s), expected none

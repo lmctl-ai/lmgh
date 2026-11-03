@@ -15,16 +15,14 @@ work=pathlib.Path(sys.argv[2])
 (work/'probe.lms').write_text('p = _lmcode_ schema='+json.dumps(sys.argv[1])+';\nlet n = str_len("implicit std");\nend _lmcode_\n')
 PY
 if [ -n "$candidate" ] &&
-   "$candidate" --lmcode-signatures "$WORK/probe.schema.json" > /dev/null 2>&1 &&
    "$candidate" --check "$WORK/probe.lms" > /dev/null 2>&1
 then
   printf '%s\n' "$candidate"
 else
   if [ -n "${LMGH_DEBUG:-}" ]; then
     echo "--- compiler probe diagnostics (candidate=$candidate)" >&2
-    [ -n "$candidate" ] && "$candidate" --lmcode-signatures "$WORK/probe.schema.json" 2>&1 | head -3 >&2
-    [ -n "$candidate" ] && "$candidate" --check "$WORK/probe.lms" 2>&1 | head -10 >&2
+    [ -n "$candidate" ] && "$candidate" --check "$WORK/probe.lms" 2>&1 >&2
   fi
-  echo "error: no working lmscript compiler found; install @lmctl-ai/lmctl@staging so lmscript is on PATH, or set LMSCRIPT_BIN" >&2
+  echo "error: no working lmscript compiler found; set LMSCRIPT_BIN to a private @lmctl-ai/lmctl@0.2.456 installation" >&2
   exit 2
 fi

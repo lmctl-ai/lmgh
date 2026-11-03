@@ -2,4 +2,4 @@ NO LICENSE octo/toolkit
 NO DESCRIPTION octo/toolkit
 NO TOPICS octo/toolkit
 audited 2 repositories for octo
-lmgh run APP_FAIL: dsl line 18:8: report has 3 finding(s), expected none
+lmgh app APP_FAIL: dsl line 18:8: report has 3 finding(s), expected none

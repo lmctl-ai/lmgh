@@ -2,21 +2,18 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/lmctl-ai/lmcode-go"
 )
 
-const version = "0.2.3"
+const version = "0.3.0"
 
 // ghVersionRe parses the first line of `gh --version`.
 var ghVersionRe = regexp.MustCompile(`gh version (\d+)\.(\d+)\.(\d+)`)
@@ -26,9 +23,10 @@ var ghVersionRe = regexp.MustCompile(`gh version (\d+)\.(\d+)\.(\d+)`)
 type Host struct {
 	reg *lmcode.Registry
 
-	ghPath string
-	ghSeen bool
-	dryRun bool
+	ghPath        string
+	ghSeen        bool
+	dryRun        bool
+	invocationDry bool
 
 	repos    []*Repo
 	issues   []*Issue
@@ -150,17 +148,10 @@ func (h *Host) runGh(args ...string) (string, error) {
 		if detail == "" {
 			detail = err.Error()
 		}
-		lines := strings.Split(detail, "\n")
-		if len(lines) > 3 {
-			lines = lines[:3]
-		}
-		return "", lmcode.NewHostError("gh " + strings.Join(args, " ") + " failed: " + strings.Join(lines, " | "))
+		return "", lmcode.NewHostError("gh " + strings.Join(args, " ") + " failed: " + detail)
 	}
 	return stdout.String(), nil
 }
-
-const ghFailedLogStdoutLimit = 1 << 20
-const ghFailedLogStderrLimit = 64 << 10
 
 func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
 	if err := checkIdent("owner", owner); err != nil {
@@ -175,19 +166,12 @@ func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
 	if err := h.ensureGh(); err != nil {
 		return "", err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, h.ghPath, "run", "view", strconv.FormatInt(runID, 10), "-R", owner+"/"+repo, "--log-failed")
+	cmd := exec.Command(h.ghPath, "run", "view", strconv.FormatInt(runID, 10), "-R", owner+"/"+repo, "--log-failed")
 	cmd.Env = append(os.Environ(), "GH_PROMPT_DISABLED=1", "NO_COLOR=1", "GH_PAGER=cat", "PAGER=cat")
 	var stdout, stderr bytes.Buffer
-	stdoutCapture := &limitedBuffer{Buffer: &stdout, Limit: ghFailedLogStdoutLimit}
-	stderrCapture := &limitedBuffer{Buffer: &stderr, Limit: ghFailedLogStderrLimit}
-	cmd.Stdout = stdoutCapture
-	cmd.Stderr = stderrCapture
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 	err := cmd.Run()
-	if ctx.Err() == context.DeadlineExceeded {
-		return "", lmcode.NewHostError("run_failed_log: gh timed out after 30s")
-	}
 	if err != nil {
 		detail := strings.TrimSpace(stderr.String())
 		if detail == "" {
@@ -196,41 +180,13 @@ func (h *Host) runGhFailedLog(owner, repo string, runID int64) (string, error) {
 		if detail == "" {
 			detail = "no diagnostic output"
 		}
-		if len(detail) > 4096 {
-			detail = detail[:4096] + "..."
-		}
 		return "", lmcode.NewHostError("run_failed_log: " + detail)
 	}
 	if stdout.Len() == 0 || strings.TrimSpace(stdout.String()) == "" {
 		return "", lmcode.NewHostError("run_failed_log: gh returned no failed-job logs")
 	}
-	if stdoutCapture.Truncated {
-		return "", lmcode.NewHostError("run_failed_log: output exceeded 1 MiB cap")
-	}
 	return stdout.String(), nil
 }
-
-type limitedBuffer struct {
-	Buffer    *bytes.Buffer
-	Limit     int
-	Truncated bool
-}
-
-func (b *limitedBuffer) Write(p []byte) (int, error) {
-	remaining := b.Limit - b.Buffer.Len()
-	if remaining <= 0 {
-		b.Truncated = true
-		return len(p), nil
-	}
-	if len(p) > remaining {
-		b.Buffer.Write(p[:remaining])
-		b.Truncated = true
-		return len(p), nil
-	}
-	return b.Buffer.Write(p)
-}
-
-var _ io.Writer = (*limitedBuffer)(nil)
 
 // runGhJSON runs gh and decodes its --json output into dest.
 func runGhJSON[T any](h *Host, args []string, dest *T) error {

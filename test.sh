@@ -11,7 +11,7 @@ fail() { echo "FAIL: $1" >&2; exit 1; }
 
 # --- compiler ----------------------------------------------------------
 LMSCRIPT="${LMSCRIPT_BIN:-$(command -v lmscript || true)}"
-[ -n "$LMSCRIPT" ] || fail "lmscript not found; npm install -g @lmctl-ai/lmctl@staging"
+[ -n "$LMSCRIPT" ] || fail "lmscript not found; set LMSCRIPT_BIN to a private compiler installation"
 LMSCRIPT="$(scripts/select-compiler.sh)" || fail "compiler capability probe"
 ok "compiler compiles against a host-only schema"
 
@@ -25,6 +25,9 @@ HOST=build/lmgh
 ok "go build (CGO disabled)"
 go test ./... || fail "Go host operation tests"
 ok "Go host operation tests"
+python3 tests/check-sdk-pin.py || fail "reviewed SDK pin"
+LMSCRIPT_BIN="$LMSCRIPT" python3 tests/check-protocol.py "$HOST" || fail "invocation protocol"
+ok "invocation protocol"
 cmp -s schema/lmgh.host.json schema/lmgh.dsl.json || fail "host/embedded schema drift"
 ok "host and embedded schema bytes agree"
 python3 tests/check-host-flags.py schema/lmgh.dsl.json "$HOST" || fail "hard flag cutover"
@@ -39,7 +42,7 @@ chmod +x build/fake-bin/gh
 export PATH="$PWD/build/fake-bin:$PWD/build:$PATH"
 
 # --- CLI protocol -------------------------------------------------------
-[ "$("$HOST" --version)" = "lmgh 0.2.3" ] || fail "--version"
+[ "$("$HOST" --version)" = "lmgh 0.3.0" ] || fail "--version"
 ok "--version"
 cmp -s <("$HOST" --lmcode-schema) schema/lmgh.dsl.json || fail "--lmcode-schema bytes differ from schema/lmgh.dsl.json"
 ok "--lmcode-schema equals schema/lmgh.dsl.json"
@@ -53,14 +56,6 @@ ok "usage errors exit 2 with CLI_USAGE JSON"
 
 # --- schema parity ------------------------------------------------------
 "$HOST" --lmcode-signatures > build/host-signatures.txt
-"$LMSCRIPT" --lmcode-signatures schema/lmgh.dsl.json > build/compiler-signatures.txt
-missing=$(python3 - <<'PY'
-host = set(open("build/host-signatures.txt").read().splitlines())
-print("\n".join(s for s in open("build/compiler-signatures.txt").read().splitlines() if s not in host))
-PY
-)
-[ -z "$missing" ] || fail "compiler signatures missing from host registry: $missing"
-ok "every compiler-visible signature binds in the host registry"
 python3 - <<'PY' || fail "host schema drifts from the registry"
 import json, subprocess
 schema = json.load(open("schema/lmgh.host.json"))

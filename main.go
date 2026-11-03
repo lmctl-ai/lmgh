@@ -89,11 +89,17 @@ func run(args []string) int {
 
 	host := NewHost()
 	host.dryRun = results.Dry()
+	host.invocationDry = results.Dry()
 	ctx := lmcode.NewContext()
 	ctx.SetDry(results.Dry())
 	ctx.Set("gh", host)
 	ctx.Set("report", host.report)
 
+	// Identity comes from the manifest, independently of argv/role order.
+	registrations := results.Registrations()
+	for i := range parts {
+		parts[i].index = registrations[i].Index
+	}
 	sort.SliceStable(parts, func(i, j int) bool { return parts[i].priority < parts[j].priority })
 	for _, part := range parts {
 		idx := part.index
@@ -112,7 +118,12 @@ func run(args []string) int {
 			break
 		}
 		if err := program.Run(ctx, host.reg); err != nil {
-			_ = results.Fail(&idx, "run", err)
+			phase := "run"
+			var failure *lmcode.Error
+			if errors.As(err, &failure) && failure.Code == lmcode.APP_FAIL {
+				phase = "app"
+			}
+			_ = results.Fail(&idx, phase, err)
 			break
 		}
 		if err := results.Complete(idx); err != nil {
