@@ -384,14 +384,18 @@ func (h *Host) registerGh() {
 		}
 		var rows []ghRelease
 		err := runGhJSON(h, []string{"release", "list", "-R", owner + "/" + repo,
-			"--limit", strconv.FormatInt(limit, 10), "--json", "tagName,name,url,publishedAt,isDraft,isPrerelease"}, &rows)
+			"--limit", strconv.FormatInt(limit, 10), "--json", "tagName,name,publishedAt,isDraft,isPrerelease"}, &rows)
 		if err != nil {
 			return lmcode.None(), err
 		}
 		out := ReleaseList{}
 		for _, v := range rows {
+			u := v.URL
+			if u == "" && v.TagName != "" {
+				u = "https://github.com/" + owner + "/" + repo + "/releases/tag/" + v.TagName
+			}
 			out = append(out, &Release{
-				tag: v.TagName, name: v.Name, url: v.URL, published: v.PublishedAt,
+				tag: v.TagName, name: v.Name, url: u, published: v.PublishedAt,
 				draft: v.IsDraft, prerelease: v.IsPrerelease,
 			})
 		}
@@ -441,9 +445,11 @@ func (h *Host) registerGh() {
 			return lmcode.None(), err
 		}
 		var rows []ghSearchRepo
-		err := runGhJSON(h, []string{"search", "repos", query,
-			"--limit", strconv.FormatInt(limit, 10), "--json",
-			"fullName,description,stargazersCount,forksCount,url,updatedAt,isArchived,isPrivate"}, &rows)
+		cmdArgs := []string{"search", "repos"}
+		cmdArgs = append(cmdArgs, strings.Fields(query)...)
+		cmdArgs = append(cmdArgs, "--limit", strconv.FormatInt(limit, 10), "--json",
+			"fullName,description,stargazersCount,forksCount,url,updatedAt,isArchived,isPrivate")
+		err := runGhJSON(h, cmdArgs, &rows)
 		if err != nil {
 			return lmcode.None(), err
 		}
@@ -473,9 +479,11 @@ func (h *Host) registerGh() {
 			return lmcode.None(), err
 		}
 		var rows []ghSearchIssue
-		err := runGhJSON(h, []string{"search", "issues", query,
-			"--limit", strconv.FormatInt(limit, 10), "--json",
-			"number,title,state,url,repository,labels,createdAt,commentsCount,author"}, &rows)
+		cmdArgs := []string{"search", "issues"}
+		cmdArgs = append(cmdArgs, strings.Fields(query)...)
+		cmdArgs = append(cmdArgs, "--limit", strconv.FormatInt(limit, 10), "--json",
+			"number,title,state,url,repository,labels,createdAt,commentsCount,author")
+		err := runGhJSON(h, cmdArgs, &rows)
 		if err != nil {
 			return lmcode.None(), err
 		}
@@ -501,9 +509,11 @@ func (h *Host) registerGh() {
 			return lmcode.None(), err
 		}
 		var rows []ghPr
-		err := runGhJSON(h, []string{"search", "prs", query,
-			"--limit", strconv.FormatInt(limit, 10), "--json",
-			"number,title,state,author,url,isDraft,labels,createdAt,updatedAt"}, &rows)
+		cmdArgs := []string{"search", "prs"}
+		cmdArgs = append(cmdArgs, strings.Fields(query)...)
+		cmdArgs = append(cmdArgs, "--limit", strconv.FormatInt(limit, 10), "--json",
+			"number,title,state,author,url,isDraft,labels,createdAt,updatedAt")
+		err := runGhJSON(h, cmdArgs, &rows)
 		if err != nil {
 			return lmcode.None(), err
 		}
