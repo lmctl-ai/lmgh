@@ -1,10 +1,37 @@
 {
-  "source": "a0c608f",
+  "source": "a0c608f29ec2d1da4aa199d7310612f293df0fb8",
   "values": {
-    "repo_view": "demo",
-    "issue_view": "Live title",
-    "pr_list": "Fix login flow",
-    "release_list": "v1.2.0",
-    "search_repos": "demo"
+    "repo_view": {
+      "name": "demo",
+      "full_name": "octo/demo",
+      "url": "https://github.com/octo/demo",
+      "stars": 42
+    },
+    "issue_view": {
+      "number": 3,
+      "title": "Live title",
+      "state": "OPEN",
+      "url": "https://github.com/octo/demo/issues/3"
+    },
+    "pr_list": {
+      "count": 2,
+      "number": 21,
+      "title": "Fix login flow",
+      "state": "OPEN",
+      "url": "https://github.com/octo/demo/pull/21"
+    },
+    "release_list": {
+      "count": 2,
+      "tag": "v1.2.0",
+      "name": "Version 1.2.0",
+      "url": "https://github.com/octo/demo/releases/tag/v1.2.0"
+    },
+    "search_repos": {
+      "count": 2,
+      "name": "demo",
+      "full_name": "octo/demo",
+      "stars": 42,
+      "url": "https://github.com/octo/demo"
+    }
   }
 }

@@ -67,13 +67,18 @@ with tempfile.TemporaryDirectory(prefix='lmgh protocol 水 ') as directory:
     actual = frame(execute([write],dry=True),0)
     assert actual == {'ok':True,'result':0,'dry':True}, actual
     assert not calls.exists(), 'dry invoked gh'
+    read = compile('read', 'let r = gh.repo_view("octo", "demo"); $return = r.name();')
+    assert frame(execute([read],dry=True),0) == {'ok':True,'result':'','dry':True}
+    assert not calls.exists(), 'dry read invoked gh'
     actual = frame(execute([write]),0)
     assert actual == {'ok':True,'result':42}, actual
     assert 'issue create' in calls.read_text()
     print('PASS immutable dry, typed object/primitive dummies, live dispatch')
     failure = compile('fail', 'gh.issue_list("octo", "demo", "invalid", 1);')
-    actual = frame(execute([first,failure]),3)
+    calls.unlink(missing_ok=True)
+    actual = frame(execute([first,failure,write]),3)
     assert not actual['ok'] and actual['part']==1 and 'result' not in actual, actual
+    assert not calls.exists(), 'failure dispatched subsequent write part'
     app = compile('app', 'report.add("x", "y", "z"); report.fail_if_any();')
     actual = frame(execute([app]),4)
     assert actual['phase']=='app' and actual['code']=='APP_FAIL' and 'result' not in actual, actual
