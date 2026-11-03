@@ -11,12 +11,11 @@ x64/arm64; `.exe` on windows) into its tool cache
 `SHA256SUMS`; the compiler uses the binary's embedded schema. The only user prerequisite is `gh` itself (>= 2.45.0 < 3.0.0) with
 `gh` auth; `LMGH_GH` overrides the gh path.
 
-Releases: pushing a `v*` tag publishes automatically — CI runs `./test.sh`
-and, once tests pass, the release job cross-builds the six assets +
-SHA256SUMS, verifies the tag matches `lmgh --version`, and creates the GitHub
-release. `scripts/release.sh <version>` (no `v` prefix) remains as the local
-fallback: it builds the six assets + SHA256SUMS and creates the release; the
-`version` constant in host.go must match the requested version.
+Releases run through CI: workflow_dispatch on `main` with `release=true`
+qualifies the source, builds six assets plus SHA256SUMS and creates the
+source-version tag/release. Existing tag events remain supported. Five native
+runners download/checksum assets and exercise protocol acceptance; Windows
+arm64 is checksum-qualified only. Do not use the historical local release helper.
 
 ## Build (developers)
 
@@ -26,11 +25,11 @@ CGO_ENABLED=0 go build -trimpath -ldflags='-buildid=' -o build/lmgh .
 
 Go 1.26; dependencies `github.com/lmctl-ai/lmcode-go` and
 `github.com/pelletier/go-toml/v2` (pinned in `go.mod`/`go.sum`; the SDK is the
-same pseudo-version as lmcode-go-sample, which defines the result protocol).
+reviewed revision recorded by full SHA in `sdk.lock`).
 
 ## CLI protocol
 
-- `lmgh --version` → `lmgh 0.2.2`
+- `lmgh --version` → `lmgh 0.3.0`
 - `lmgh --lmcode-schema [--json]` → the embedded schema bytes (byte-equal to
   `schema/lmgh.dsl.json`; bytecode is bound to the sha256 of these bytes)
 - `lmgh --lmcode-signatures` → registry signatures (full SDK std + host; a
@@ -49,17 +48,15 @@ the same codes (`APP_FAIL` → 4, any other failure → 3).
 
 ## Parity rule
 
-The compiler-visible catalog (`lmscript --lmcode-signatures
-schema/lmgh.dsl.json`, implicit std + host) must be a subset of the host
-registry (`lmgh --lmcode-signatures`) — checked both directions for host
-signatures in `test.sh`. The registry is intentionally a superset (full SDK
-std v3) so every compiler-emittable call binds.
+The authored host schema must match the registered host signatures. `test.sh`
+checks schema-to-registry binding; compiling/executing the existing examples
+also checks emitted std and host calls against the pinned SDK. Discovery
+belongs to `lmgh --lmcode-signatures`, not the standalone compiler CLI.
 
-The compiler for tests and CI is the `staging` dist-tag of the npm package
-(`npm install -g @lmctl-ai/lmctl@staging`; 0.2.455 when last run); no version is
-pinned in the repo.
+Tests and CI use a private prefix installation of `@lmctl-ai/lmctl@0.2.456`,
+selected through `LMSCRIPT_BIN`. There is no global install requirement.
 
-## Test flow (`./test.sh`, 85 checks)
+## Test flow (`./test.sh`, 86 checks)
 
 1. compiler present (`LMSCRIPT_BIN` overrides)
 2. `scripts/sync-cli.sh --verify` (auto-syncs when missing)
