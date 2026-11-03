@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/lmctl-ai/lmcode-go"
@@ -14,7 +13,7 @@ import (
 //go:embed schema/lmgh.dsl.json
 var schemaBytes []byte
 
-const usage = "usage: lmgh --version | --lmcode-schema [--json] | --lmcode-signatures | [--lmcode|--first|--last] FILE ..."
+const usage = "usage: lmgh --version | --lmcode-schema [--json] | --lmcode-signatures | --lmcode FILE [--lmcode FILE ...]"
 
 func cliFailure() int {
 	return lmcode.FailureFrame(os.Stdout, "cli", lmcode.NewError(lmcode.CLI_USAGE, usage))
@@ -25,9 +24,8 @@ func main() {
 }
 
 type invocationArg struct {
-	file     string
-	priority int
-	index    int
+	file  string
+	index int
 }
 
 func run(args []string) int {
@@ -57,25 +55,19 @@ func run(args []string) int {
 		return 0
 	}
 
-	// Repeated [--lmcode|--first|--last] FILE pairs: first roles run before
-	// normal roles and last roles after, stable within each role.
+	// Repeated --lmcode FILE pairs execute in their supplied order.
 	var parts []invocationArg
 	var files []string
 	if len(args)%2 != 0 {
 		return cliFailure()
 	}
 	for i := 0; i < len(args); i += 2 {
-		priority := 1
 		switch args[i] {
 		case "--lmcode":
-		case "--first":
-			priority = 0
-		case "--last":
-			priority = 2
 		default:
 			return cliFailure()
 		}
-		parts = append(parts, invocationArg{file: args[i+1], priority: priority, index: len(parts)})
+		parts = append(parts, invocationArg{file: args[i+1], index: len(parts)})
 		files = append(files, args[i+1])
 	}
 	results, err := lmcode.InvocationResultsFromCommand(files)
@@ -95,12 +87,11 @@ func run(args []string) int {
 	ctx.Set("gh", host)
 	ctx.Set("report", host.report)
 
-	// Identity comes from the manifest, independently of argv/role order.
+	// Identity comes from the manifest, independently of argv order.
 	registrations := results.Registrations()
 	for i := range parts {
 		parts[i].index = registrations[i].Index
 	}
-	sort.SliceStable(parts, func(i, j int) bool { return parts[i].priority < parts[j].priority })
 	for _, part := range parts {
 		idx := part.index
 		bytecode, err := os.ReadFile(part.file)

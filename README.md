@@ -140,19 +140,19 @@ assets plus `SHA256SUMS` and creates the GitHub release (the asset names follow 
 and exercise the invocation protocol. No local tagging or publishing is needed. [durable-memory/](durable-memory/) records the design and
 decisions.
 
-## Host protocol (v0.3.0)
+## Host protocol (v0.3.1)
 
 The Go SDK is pinned by full reviewed SHA in [`sdk.lock`](sdk.lock) and by its
 checksummed pseudo-version in `go.mod`/`go.sum`. The host reads lmcode bytecode
 (DSLB v6, the current literal format name), exposes only `--lmcode FILE`,
-`--lmcode-schema [--json]`, `--lmcode-signatures` and `--version`, and accepts
-stable `--first FILE` / `--last FILE` builder roles. Retired flags have no aliases.
+`--lmcode-schema [--json]`, `--lmcode-signatures` and `--version`. Repeat `--lmcode FILE` for builder parts, in execution order.
+Retired `--first` / `--last` flags have no aliases and fail before input access.
 
 `LMCODE_INVOCATION_FILE` selects an absolute-path invocation manifest v1. Its
 `dry` field must be boolean; missing or malformed metadata fails with exit 2
 before any GitHub process or operation runs. Without the variable, standalone
 invocations use argument-order result slots and live mode. In builders, manifest
-indices determine result order even when role flags reorder execution.
+indices determine result order independently of the repeated selectors' argv order.
 
 Dry invocations skip all domain callbacks, including subprocesses, review-file
 creation and report writes; the SDK supplies typed primitive/object dummies.
@@ -167,5 +167,5 @@ results or a structured failure without result data. Exit 0 means success,
 (including `report.fail_if_any()` and unreadable input). Builder failures identify
 the original manifest part and stop dispatching subsequent programs.
 
-Downstream recipes can pin `install="github:lmctl-ai/lmgh@v0.3.0"` rather than
+Downstream recipes can pin `install="github:lmctl-ai/lmgh@v0.3.1"` rather than
 tracking `latest`. The compiler used in CI is privately installed version 0.2.456.

@@ -29,13 +29,13 @@ reviewed revision recorded by full SHA in `sdk.lock`).
 
 ## CLI protocol
 
-- `lmgh --version` → `lmgh 0.3.0`
+- `lmgh --version` → `lmgh 0.3.1`
 - `lmgh --lmcode-schema [--json]` → the embedded schema bytes (byte-equal to
   `schema/lmgh.dsl.json`; bytecode is bound to the sha256 of these bytes)
 - `lmgh --lmcode-signatures` → registry signatures (full SDK std + host; a
   superset of what the compiler exposes)
-- `lmgh [--lmcode|--first|--last] FILE ...` → load + run each file in one
-  shared host (first roles before normal, last after). Exactly one terminal
+- `lmgh --lmcode FILE [--lmcode FILE ...]` → load + run each file in one
+  shared host in argv order; retired `--first`/`--last` are CLI errors. Exactly one terminal
   frame is written, `LMCODE_RETURN_BEGIN\n<envelope>\nLMCODE_RETURN_END\n`;
   `lmscript`'s `run_lmcode` parses it. Success is `{"ok":true,"result":null}`;
   failures carry phase/code/message/line/column.
@@ -90,6 +90,6 @@ snapshots now say phase `app`. Failed-log capture and diagnostics have no implic
 size ceiling or process deadline. Domain list-count validation remains explicit.
 
 Release through CI workflow_dispatch on main with `release=true`; the workflow
-creates v0.3.0 from the source version after the full test gate. Five native
+creates v0.3.1 from the source version after the full test gate. Five native
 runners download/checksum and execute the released bytes and protocol suite;
 Windows arm64 is cross-built and checksum-verified, not executed natively.

@@ -51,11 +51,19 @@ with tempfile.TemporaryDirectory(prefix='lmgh protocol 水 ') as directory:
     second = compile('second', '$return = 22;')
     assert frame(execute([first]),0) == {'ok':True,'result':11}
     assert frame(execute([first,second]),0) == {'ok':True,'result':[11,22],'parts':2}
-    # Command roles may reorder execution; result indices belong to manifest order.
-    actual = frame(execute([first,second],flags=['--first',str(second),'--last',str(first)]),0)
+    # Reordered repeated selectors retain manifest result identity.
+    actual = frame(execute([first,second],flags=['--lmcode',str(second),'--lmcode',str(first)]),0)
     assert actual == {'ok':True,'result':[11,22],'parts':2}, actual
     print('PASS single/builder, manifest identity across reordered argv')
     write = compile('write', 'gh.dry_run(false); let i = gh.issue_create("octo", "demo", "test", "body"); $return = i.number();')
+    for flag in ['--first','--last']:
+        for files, flags in [([write],[flag,str(write)]),
+                             ([write,second],['--lmcode',str(write),flag,str(second)]),
+                             ([write,second],[flag,str(write),'--lmcode',str(second)])]:
+            calls.unlink(missing_ok=True)
+            rejected = frame(execute(files,flags=flags),2)
+            assert rejected['phase']=='cli' and not calls.exists(), (flag,rejected)
+    print('PASS retired builder flags refuse before input or GitHub dispatch')
     for corrupt in [lambda x: {k:v for k,v in x.items() if k!='dry'}, lambda x: dict(x,dry='yes'),
                     lambda x: dict(x,unknown=True),lambda x: dict(x,version=2)]:
         calls.unlink(missing_ok=True)
