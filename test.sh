@@ -39,7 +39,7 @@ chmod +x build/fake-bin/gh
 export PATH="$PWD/build/fake-bin:$PWD/build:$PATH"
 
 # --- CLI protocol -------------------------------------------------------
-[ "$("$HOST" --version)" = "lmgh 0.2.2" ] || fail "--version"
+[ "$("$HOST" --version)" = "lmgh 0.2.3" ] || fail "--version"
 ok "--version"
 cmp -s <("$HOST" --lmcode-schema) schema/lmgh.dsl.json || fail "--lmcode-schema bytes differ from schema/lmgh.dsl.json"
 ok "--lmcode-schema equals schema/lmgh.dsl.json"
