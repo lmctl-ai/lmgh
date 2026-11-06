@@ -128,7 +128,7 @@ after `title` is refused rather than silently overriding the value the operator 
 ```sh
 go build -o build/lmgh .   # from a source checkout; needs Go 1.26
 scripts/sync-cli.sh        # fetch the pinned cli/cli checkout (third_party/)
-./test.sh                  # 86 checks, including 14 offline recipe scenarios
+./test.sh                  # 95 checks, including 14 offline recipe scenarios
 ```
 
 Releases: dispatch the CI workflow on `main` with `release=true` to publish the

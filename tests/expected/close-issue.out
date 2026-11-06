@@ -1,0 +1,1 @@
+dry-run: gh issue close 14 -R octo/demo --reason completed

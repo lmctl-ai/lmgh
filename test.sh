@@ -106,6 +106,13 @@ run_example search-repos
 run_example create-issue
 run_example submit-pr
 run_example review-pr
+run_example pr-merge-blockers 4
+run_example search-work
+run_example close-issue
+run_example comment-pr
+run_example add-label
+run_example create-release
+run_example merge-if-green 4
 rm -f pr-review-*.toml  # submit-pr / review-pr leave their review files behind
 cmp -s build/repo-overview.txt tests/expected/repo-overview.txt || fail "repo-overview.txt drift"
 cmp -s build/open-prs.txt tests/expected/open-prs.txt || fail "open-prs.txt drift"
@@ -114,7 +121,39 @@ cmp -s build/release-notes.txt tests/expected/release-notes.txt || fail "release
 cmp -s build/create-issue.txt tests/expected/create-issue.txt || fail "create-issue.txt drift"
 cmp -s build/issue-digest.json tests/expected/issue-digest.json || fail "issue-digest.json drift"
 cmp -s build/search-repos.json tests/expected/search-repos.json || fail "search-repos.json drift"
+for f in pr-merge-blockers close-issue comment-pr add-label create-release merge-if-green; do
+  cmp -s "build/$f.txt" "tests/expected/$f.txt" || fail "$f.txt drift"
+done
 ok "example report files match"
+
+# write examples: dry-run by default (gh never called), exact argv with --live
+rm -f build/example-writes.log
+for ex in "close-issue octo demo 14 completed" "comment-pr octo demo 21 hello" "add-label octo demo 14 triaged" "create-release octo demo v2.0.0 Two"; do
+  set +e; out=$(FAKE_GH_LOG=build/example-writes.log "$LMSCRIPT" examples/${ex%% *}.lms ${ex#* } 2>&1); code=$?; set -e
+  [ "$code" = 0 ] && [[ "$out" == dry-run:* ]] || fail "$ex default must be a dry run (exit $code): $out"
+done
+[ ! -e build/example-writes.log ] || fail "write examples called gh without --live"
+for ex in "close-issue octo demo 14 completed" "comment-pr octo demo 21 hello" "add-label octo demo 14 triaged" "create-release octo demo v2.0.0 Two"; do
+  set +e; out=$(FAKE_GH_LOG=build/example-writes.log "$LMSCRIPT" examples/${ex%% *}.lms ${ex#* } --live 2>&1); code=$?; set -e
+  [ "$code" = 0 ] && [[ "$out" == ok* ]] || fail "$ex --live (exit $code): $out"
+done
+python3 - build/example-writes.log <<'PY' || fail "write example argv: $(cat build/example-writes.log)"
+import json, sys
+got = [json.loads(l) for l in open(sys.argv[1]).read().splitlines()]
+want = [
+    ["issue", "close", "14", "-R", "octo/demo", "--reason", "completed"],
+    ["pr", "comment", "21", "-R", "octo/demo", "--body", "hello"],
+    ["api", "--method", "POST", "repos/octo/demo/issues/14/labels", "-f", "labels[]=triaged"],
+    ["release", "create", "v2.0.0", "-R", "octo/demo", "--title", "Two", "--notes", "Release notes for v2.0.0", "--draft"],
+]
+assert got == want, got
+PY
+# merge-if-green must not merge a PR whose triage fails, even with --live
+rm -f build/example-merge.log
+set +e; out=$(FAKE_GH_LOG=build/example-merge.log "$LMSCRIPT" examples/merge-if-green.lms octo demo 21 squash --live 2>&1); code=$?; set -e
+[ "$code" = 4 ] && [[ "$out" == *"not merging"* ]] || fail "merge-if-green --live on a red PR (exit $code): $out"
+! grep -q '"merge"' build/example-merge.log 2>/dev/null || fail "merge-if-green merged a red PR"
+ok "write examples are dry by default and send exact argv with --live"
 
 # --- behavioral chunks ---------------------------------------------------
 WORK=build/test-chunks

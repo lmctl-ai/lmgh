@@ -1,0 +1,34 @@
+# Why can't these pull requests merge yet? Lists every open PR that is not
+# ready (failing checks, requested changes, conflicts) with the reasons; exits 4
+# when any PR is blocked.
+# Run:    lmscript examples/pr-merge-blockers.lms <owner> <repo>
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+p = _lmcode_ cli="lmgh";
+let prs = gh.pr_list(${owner}, ${repo}, "open", 100);
+let ready = 0;
+for (i in range(0, prs.len())) {
+  let pr = prs.at(i);
+  let t = gh.pr_triage(${owner}, ${repo}, pr.number());
+  if (t.ok()) {
+    ready = ready + 1;
+    print("READY   #" + str(pr.number()) + " " + pr.title());
+  } else {
+    let why = "";
+    if (t.checks_failing() > 0) { why = why + " failing-checks=" + str(t.checks_failing()); }
+    if (t.changes_requested() > 0) { why = why + " changes-requested=" + str(t.changes_requested()); }
+    if (t.mergeable() != "MERGEABLE") { why = why + " mergeable=" + t.mergeable(); }
+    if (pr.is_draft()) { why = why + " draft"; }
+    print("BLOCKED #" + str(pr.number()) + " " + pr.title() + " ->" + why);
+    report.add("merge-blocker", ${owner} + "/" + ${repo} + "#" + str(pr.number()), pr.title() + " ->" + why);
+  }
+}
+print(str(ready) + " of " + str(prs.len()) + " open PRs ready to merge");
+report.write_text("build/pr-merge-blockers.txt");
+report.fail_if_any();
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

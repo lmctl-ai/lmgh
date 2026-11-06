@@ -1,0 +1,25 @@
+# Everything open that involves one user: their pull requests and the issues
+# assigned to them, across all repositories visible to gh.
+# Run:    lmscript examples/search-work.lms <user>
+user = ARGV.len() > 0 ? ARGV[0] : "octocat";
+p = _lmcode_ cli="lmgh";
+let prs = gh.search_prs("author:" + ${user} + " is:pr is:open", 50);
+print("pull requests by " + ${user} + ": " + str(prs.len()));
+for (i in range(0, prs.len())) {
+  let pr = prs.at(i);
+  let draft = "";
+  if (pr.is_draft()) { draft = " [draft]"; }
+  print("  PR    " + pr.url() + " " + pr.title() + draft);
+}
+let issues = gh.search_issues("assignee:" + ${user} + " is:issue is:open", 50);
+print("issues assigned to " + ${user} + ": " + str(issues.len()));
+for (i in range(0, issues.len())) {
+  let is = issues.at(i);
+  print("  ISSUE " + is.url() + " " + is.title() + " (" + str(is.comments()) + " comments)");
+}
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

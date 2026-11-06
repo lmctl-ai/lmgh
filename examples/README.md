@@ -23,6 +23,13 @@ repository with arguments; runs use the ambient `gh` authentication.
 | [issue-triage-unlabeled.lms](issue-triage-unlabeled.lms) | Open issues needing labels | read | `<owner> <repo>` |
 | [repo-audit.lms](repo-audit.lms) | Missing license, description and topics across an owner's repositories | read | `<owner> [repo]` |
 | [review-pr.lms](review-pr.lms) | Human-in-the-loop PR review: writes a verdict TOML (`APPROVE`/`REQUEST_CHANGES`/`COMMENT`), submits only on approval | write | `<owner> <repo> <number> [event] [--dry]` |
+| [pr-merge-blockers.lms](pr-merge-blockers.lms) | Every open PR that cannot merge yet, with reasons (failing checks, requested changes, conflicts, draft); exits 4 when any | read | `<owner> <repo>` |
+| [search-work.lms](search-work.lms) | One user's open PRs and assigned issues across repositories | read | `<user>` |
+| [merge-if-green.lms](merge-if-green.lms) | Merges a PR only when triage is clean, otherwise reports why and exits 4; dry-run unless `--live` | write | `<owner> <repo> <number> [merge\|squash\|rebase] [--live]` |
+| [close-issue.lms](close-issue.lms) | Closes an issue with a reason; dry-run unless `--live` | write | `<owner> <repo> <number> [reason] [--live]` |
+| [comment-pr.lms](comment-pr.lms) | Posts a PR comment; dry-run unless `--live` | write | `<owner> <repo> <number> <body> [--live]` |
+| [add-label.lms](add-label.lms) | Adds a label to an issue or PR; dry-run unless `--live` | write | `<owner> <repo> <number> <label> [--live]` |
+| [create-release.lms](create-release.lms) | Creates a draft release from an existing tag; dry-run unless `--live` | write | `<owner> <repo> <tag> [title] [--live]` |
 
 ## Running
 

@@ -1,0 +1,1 @@
+dry-run: gh release create v1.0.0 -R octo/demo --title v1.0.0 --notes Release notes for v1.0.0 --draft

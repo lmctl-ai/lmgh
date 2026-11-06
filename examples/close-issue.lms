@@ -1,0 +1,18 @@
+# Closes an issue with a reason. Dry-run unless --live is the last argument:
+# a dry run only records the intent, nothing is sent to GitHub.
+# Run:    lmscript examples/close-issue.lms <owner> <repo> <number> [completed|"not planned"] [--live]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 14;
+reason = ARGV.len() > 3 ? ARGV[3] : "completed";
+dry = !(ARGV.len() > 4 && ARGV[4] == "--live");
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+print(gh.issue_close(${owner}, ${repo}, ${number}, ${reason}));
+report.write_text("build/close-issue.txt");
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

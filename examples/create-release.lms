@@ -1,0 +1,18 @@
+# Creates a GitHub release from an existing tag. It is a DRAFT by default so a
+# human publishes it; dry-run unless --live is the last argument.
+# Run:    lmscript examples/create-release.lms <owner> <repo> <tag> [title] [--live]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+tag = ARGV.len() > 2 ? ARGV[2] : "v1.0.0";
+title = ARGV.len() > 3 ? ARGV[3] : tag;
+dry = !(ARGV.len() > 4 && ARGV[4] == "--live");
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+print(gh.release_create(${owner}, ${repo}, ${tag}, ${title}, "Release notes for " + ${tag}, true, false));
+report.write_text("build/create-release.txt");
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

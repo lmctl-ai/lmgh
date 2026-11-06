@@ -56,7 +56,7 @@ belongs to `lmgh --lmcode-signatures`, not the standalone compiler CLI.
 Tests and CI use a private prefix installation of `@lmctl-ai/lmctl@0.2.456`,
 selected through `LMSCRIPT_BIN`. There is no global install requirement.
 
-## Test flow (`./test.sh`, 86 checks)
+## Test flow (`./test.sh`, 95 checks)
 
 1. compiler present (`LMSCRIPT_BIN` overrides)
 2. `scripts/sync-cli.sh --verify` (auto-syncs when missing)

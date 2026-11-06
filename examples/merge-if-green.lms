@@ -1,0 +1,28 @@
+# Merges a pull request only when triage says it is ready (no failing checks,
+# no requested changes, mergeable). Otherwise records why and exits 4.
+# Dry-run unless --live is the last argument.
+# Run:    lmscript examples/merge-if-green.lms <owner> <repo> <number> [merge|squash|rebase] [--live]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 21;
+method = ARGV.len() > 3 ? ARGV[3] : "squash";
+dry = !(ARGV.len() > 4 && ARGV[4] == "--live");
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+let t = gh.pr_triage(${owner}, ${repo}, ${number});
+print("#" + str(t.number()) + ": " + t.title());
+print(t.summary());
+if (t.ok()) {
+  print(gh.pr_merge(${owner}, ${repo}, ${number}, ${method}));
+} else {
+  print("not merging: triage says NOT ready");
+  report.add("merge-refused", ${owner} + "/" + ${repo} + "#" + str(t.number()), t.summary());
+}
+report.write_text("build/merge-if-green.txt");
+report.fail_if_any();
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

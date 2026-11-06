@@ -1,0 +1,1 @@
+dry-run: gh api --method POST repos/octo/demo/issues/14/labels -f labels[]=triaged

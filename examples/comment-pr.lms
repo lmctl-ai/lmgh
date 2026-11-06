@@ -1,0 +1,18 @@
+# Posts a top-level comment on a pull request. Dry-run unless --live is the
+# last argument.
+# Run:    lmscript examples/comment-pr.lms <owner> <repo> <number> <body> [--live]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 21;
+body = ARGV.len() > 3 ? ARGV[3] : "Thanks - reviewing this now.";
+dry = !(ARGV.len() > 4 && ARGV[4] == "--live");
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+print(gh.pr_comment(${owner}, ${repo}, ${number}, ${body}));
+report.write_text("build/comment-pr.txt");
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}

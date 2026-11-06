@@ -1,0 +1,18 @@
+# Adds one label to an issue or pull request (GitHub treats both alike for
+# labels). Dry-run unless --live is the last argument.
+# Run:    lmscript examples/add-label.lms <owner> <repo> <number> <label> [--live]
+owner = ARGV.len() > 0 ? ARGV[0] : "octo";
+repo = ARGV.len() > 1 ? ARGV[1] : "demo";
+number = ARGV.len() > 2 ? num(ARGV[2]) : 14;
+label = ARGV.len() > 3 ? ARGV[3] : "triaged";
+dry = !(ARGV.len() > 4 && ARGV[4] == "--live");
+p = _lmcode_ cli="lmgh";
+gh.dry_run(${dry});
+print(gh.label_add(${owner}, ${repo}, ${number}, ${label}));
+report.write_text("build/add-label.txt");
+end _lmcode_
+r = run_lmcode(p);
+if (!r.ok) {
+  print("lmgh " + r.phase + " " + r.code + ": " + r.message);
+  exit(r.code == "APP_FAIL" ? 4 : 3);
+}
